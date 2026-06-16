@@ -109,6 +109,12 @@
   .diffBtn { flex:1; min-width:120px; cursor:pointer; pointer-events:auto; background:#141a28; border:2px solid #2a3142; border-radius:6px; padding:10px; text-align:center; transition:transform .08s,border .12s; }
   .diffBtn:hover { transform:translateY(-2px); }
   .diffBtn.sel { background:#1c2233; }
+  .task { background:#141a28; border:1px solid #2a3142; border-radius:8px; padding:12px 14px; margin-bottom:10px; }
+  .task .tt { font-weight:bold; font-size:15px; }
+  .task .tr { float:right; color:#ffd34d; font-weight:bold; font-size:13px; }
+  .task .tbar { height:10px; background:#0e1320; border-radius:5px; margin-top:8px; overflow:hidden; }
+  .task .tfill { height:100%; background:linear-gradient(90deg,#4aa3ff,#6bb6ff); transition:width .3s; }
+  .task.done { border-color:#2ecc71; } .task.done .tr { color:#2ecc71; } .task.done .tfill { background:linear-gradient(90deg,#2ecc71,#27ae60); }
   #endTitle { font-size:50px; margin-bottom:6px;}
 
   /* ===== Mobile touch controls ===== */
@@ -211,9 +217,11 @@
   <div id="menu" class="screen">
     <h1 class="logo">BLOX RIVALS</h1>
     <div class="tagline">ROBLOX-STYLE FPS · VS AI</div>
-    <button class="btn primary" id="btnPlay">PLAY</button>
+    <button class="btn primary" id="btnRanked">⚔️ RANKED MATCH</button>
+    <button class="btn" id="btnPractice">🎯 PRACTICE ARENA</button>
+    <button class="btn" id="btnTasks">📋 TASKS</button>
     <button class="btn" id="btnShop">🔑 ARMORY / UNLOCKS</button>
-    <button class="btn" id="btnFull">🖥️ FULLSCREEN</button>
+    <button class="btn small" id="btnFull">🖥️ FULLSCREEN</button>
     <button class="btn small" id="btnHelp">HOW TO PLAY</button>
     <div style="margin-top:18px;color:#8a93a6;font-size:13px;">Keys: <span id="menuKeys" style="color:#ffd34d;font-weight:bold;">0</span> 🔑</div>
   </div>
@@ -265,11 +273,21 @@
       <div style="line-height:2;font-size:15px;">
         <b>WASD</b> — move &nbsp; <b>Mouse</b> — look &nbsp; <b>Left Click</b> — shoot<br/>
         <b>Shift</b> — sprint &nbsp; <b>Space</b> — jump &nbsp; <b>Ctrl</b> — crouch<br/>
-        <b>R</b> — reload &nbsp; <b>1-4</b> — switch weapon slot &nbsp; <b>G</b> — throw grenade<br/>
-        <b>Esc</b> — release mouse / pause<br/><br/>
-        Win rounds by getting more kills. Earn 🔑 <b>keys</b> for kills, round wins, and match wins — spend them in the Armory to unlock the full Rivals arsenal.
+        <b>R</b> — reload &nbsp; <b>1-4</b> — switch weapon slot &nbsp; <b>G</b> — grenade / heal<br/>
+        <b>Esc</b> — pause &nbsp; · &nbsp; hold <b>W</b> into a climb tower to climb up<br/><br/>
+        Earn 🔑 <b>keys</b> only by completing <b>Tasks</b> (reset every 3 days) in <b>Ranked</b> matches. <b>Practice Arena</b> lets you try every weapon, but doesn't count toward tasks.
       </div>
       <div class="rowBtns"><button class="btn small" id="helpBack">← BACK</button></div>
+    </div>
+  </div>
+
+  <!-- ===== TASKS ===== -->
+  <div id="tasks" class="screen hidden">
+    <div class="panel" style="max-width:560px;">
+      <h2>📋 TASKS</h2>
+      <div class="sub">Complete these in <b>Ranked</b> matches to earn 🔑 keys. Resets in <span id="taskReset" style="color:#ffd34d;">—</span>.</div>
+      <div id="taskList"></div>
+      <div class="rowBtns"><button class="btn small" id="tasksBack">← BACK</button></div>
     </div>
   </div>
 
@@ -414,6 +432,7 @@ let selectedMap = 'sandstorm';
 let myLoadout = { primary:'assault', secondary:'handgun', melee:'knife', throwable:'frag' };
 let curSlot = 'primary';
 let match = null;
+let gameMode = 'ranked';   // 'ranked' (counts toward tasks) | 'practice' (all weapons, no progress)
 const keysDown = {};
 let mouseFX=0, mouseFY=0, mouseInside=false, ads=false;
 const SENS=0.0022, BASE_FOV=75, FALLBACK_STEER=1300;
@@ -1024,10 +1043,10 @@ function damagePlayer(dmg, bot){
 }
 
 function onPlayerKill(bot){
-  player.kills++; addKeys(2);
+  player.kills++;
   killfeed('YOU', bot.weapon.name.split(' ')[0]+' bot', curWeapon().name);
   match.youKills++;
-  centerMsg('+2 🔑', 600);
+  if(gameMode==='ranked') taskProgress('kill15', 1);
   if(!checkRoundEnd()) setTimeout(resetSkirmish, 1500);
 }
 function onPlayerDeath(bot){
@@ -1068,7 +1087,6 @@ function endRound(msg){
   if(match.youRounds>=ROUND_TARGET || match.botRounds>=ROUND_TARGET){ return endMatch(); }
   running=false;
   centerMsg(msg, 2200);
-  addKeys(match.youKills>=KILLS_PER_ROUND?5:1);
   setTimeout(()=>{
     if(!inMatch) return;
     match.round++; match.youKills=0; match.botKills=0;
@@ -1081,14 +1099,15 @@ function endRound(msg){
 function endMatch(){
   running=false;
   const won = match.youRounds>match.botRounds;
-  let reward = won?25:8;
-  addKeys(reward);
+  if(gameMode==='ranked'){ taskProgress('play5', 1); if(won) taskProgress('win2', 1); }
   inMatch=false;
   controls.unlock();
   document.getElementById('endTitle').textContent = won?'VICTORY':'DEFEAT';
   document.getElementById('endTitle').style.color = won?'#4aa3ff':'#ff4655';
-  document.getElementById('endSub').textContent = `Rounds ${match.youRounds} – ${match.botRounds} · ${player.kills} kills`;
-  document.getElementById('endReward').textContent = `+${reward} 🔑 keys earned`;
+  document.getElementById('endSub').textContent = `Rounds ${match.youRounds} – ${match.botRounds} · ${player.kills} kills · ${gameMode.toUpperCase()}`;
+  document.getElementById('endReward').textContent = gameMode==='ranked'
+    ? 'Tasks updated — open 📋 Tasks to see your key rewards'
+    : 'Practice Arena — no task progress';
   show('hud',false); show('end',true);
 }
 
@@ -1285,7 +1304,7 @@ function updateWeaponUI(){
 function updateAllUI(){ updateHealthUI(); updateWeaponUI(); refreshKeyUI();
   document.getElementById('youScore').textContent=match.youRounds;
   document.getElementById('botScore').textContent=match.botRounds;
-  document.getElementById('roundInfo').textContent=`ROUND ${match.round} · ${match.youKills}–${match.botKills} (to ${KILLS_PER_ROUND}) · ${selectedDifficulty.toUpperCase()}`;
+  document.getElementById('roundInfo').textContent=`ROUND ${match.round} · ${match.youKills}–${match.botKills} (to ${KILLS_PER_ROUND}) · ${selectedDifficulty.toUpperCase()} · ${gameMode==='ranked'?'RANKED':'PRACTICE'}`;
 }
 function refreshKeyUI(){ for(const el of ['keyCount','menuKeys','shopKeys']) { const e=document.getElementById(el); if(e) e.textContent=save.keys; } }
 let hmTimer;
@@ -1298,7 +1317,7 @@ function damageFlash(){ const h=document.getElementById('hud'); h.style.boxShado
 // ============================================================
 //  SCREENS
 // ============================================================
-const SCREENS=['menu','mapSelect','loadout','shop','help','pause','end'];
+const SCREENS=['menu','mapSelect','loadout','shop','help','tasks','pause','end'];
 function show(id, on=true){
   if(id===null){ for(const s of SCREENS) document.getElementById(s).classList.add('hidden'); return; }
   if(id==='hud'){ document.getElementById('hud').classList.toggle('hidden', !on); document.body.classList.toggle('playing', on); return; }
@@ -1341,19 +1360,65 @@ function buildLoadout(){
     const col=document.createElement('div'); col.className='slotCol';
     col.innerHTML=`<h3>${slot}</h3>`;
     for(const id in WEAPONS){ const w=WEAPONS[id]; if(w.slot!==slot) continue;
-      const unlocked=isUnlocked(id);
-      const el=document.createElement('div'); el.className='wpn'+(myLoadout[slot]===id?' sel':'')+(unlocked?'':' locked');
+      const avail = (gameMode==='practice') || isUnlocked(id);   // practice = everything available
+      const el=document.createElement('div'); el.className='wpn'+(myLoadout[slot]===id?' sel':'')+(avail?'':' locked');
       let stats='';
       if(w.dmg) stats+=`<span class="stat">DMG ${w.dmg}</span>`;
       if(w.rpm) stats+=`<span class="stat">RPM ${w.rpm}</span>`;
       if(w.mag) stats+=`<span class="stat">MAG ${w.mag}</span>`;
       if(w.radius) stats+=`<span class="stat">AOE ${w.radius}</span>`;
-      el.innerHTML=`<div class="wn">${w.name}</div><div class="ws">${stats}</div>`+(unlocked?'':`<div class="lock">🔒 ${w.cost}🔑</div>`);
-      el.onclick=()=>{ if(!isUnlocked(id)){ centerMsgMenu('Unlock in Armory first'); return; } myLoadout[slot]=id; buildLoadout(); };
+      el.innerHTML=`<div class="wn">${w.name}</div><div class="ws">${stats}</div>`+(avail?'':`<div class="lock">🔒 ${w.cost}🔑</div>`);
+      el.onclick=()=>{ if(!avail){ centerMsgMenu('Unlock in Armory first'); return; } myLoadout[slot]=id; buildLoadout(); };
       col.appendChild(el);
     }
     g.appendChild(col);
   }
+}
+// in Ranked, swap out any equipped weapon the player doesn't own for a free one
+function ensureRankedLoadout(){
+  for(const slot of SLOTS){ if(!isUnlocked(myLoadout[slot])){
+    const free=Object.keys(WEAPONS).find(id=>WEAPONS[id].slot===slot && WEAPONS[id].free);
+    if(free) myLoadout[slot]=free;
+  }}
+}
+
+// ============================================================
+//  TASKS (keys are earned ONLY here, in Ranked; reset every 3 days)
+// ============================================================
+const TASKS = [
+  { id:'kill15', name:'Eliminate 15 enemies', goal:15, reward:120 },
+  { id:'win2',   name:'Win 2 Ranked matches', goal:2,  reward:160 },
+  { id:'play5',  name:'Play 5 Ranked matches', goal:5, reward:80  },
+];
+const TASK_RESET_MS = 3*24*60*60*1000;
+function ensureTasks(){
+  const now=Date.now();
+  if(!save.tasks || !save.tasks.resetAt || now>=save.tasks.resetAt){
+    save.tasks={ resetAt:now+TASK_RESET_MS, progress:{}, claimed:{} };
+  }
+  for(const t of TASKS){ if(save.tasks.progress[t.id]===undefined) save.tasks.progress[t.id]=0; if(save.tasks.claimed[t.id]===undefined) save.tasks.claimed[t.id]=false; }
+  persist();
+}
+function taskProgress(id,n){
+  ensureTasks();
+  const t=TASKS.find(x=>x.id===id); if(!t || save.tasks.claimed[id]) return;
+  save.tasks.progress[id]=Math.min(t.goal,(save.tasks.progress[id]||0)+n);
+  if(save.tasks.progress[id]>=t.goal){ save.tasks.claimed[id]=true; addKeys(t.reward); centerMsg('✅ TASK COMPLETE  +'+t.reward+' 🔑', 2400); }
+  persist();
+}
+function fmtDur(ms){ if(ms<0)ms=0; const h=Math.floor(ms/3600000), d=Math.floor(h/24); if(d>0) return d+'d '+(h%24)+'h'; const m=Math.floor((ms%3600000)/60000); return h+'h '+m+'m'; }
+function buildTasks(){
+  ensureTasks();
+  const el=document.getElementById('taskList'); el.innerHTML='';
+  for(const t of TASKS){
+    const p=Math.min(save.tasks.progress[t.id]||0, t.goal), done=save.tasks.claimed[t.id];
+    const d=document.createElement('div'); d.className='task'+(done?' done':'');
+    d.innerHTML=`<span class="tr">${done?'✅ ':'+'}${t.reward} 🔑</span><div class="tt">${t.name}</div>`+
+      `<div class="tbar"><div class="tfill" style="width:${p/t.goal*100}%"></div></div>`+
+      `<div style="font-size:11px;color:#8a93a6;margin-top:4px;">${p} / ${t.goal}${done?' · claimed':''}</div>`;
+    el.appendChild(d);
+  }
+  document.getElementById('taskReset').textContent = fmtDur(save.tasks.resetAt - Date.now());
 }
 function centerMsgMenu(t){ /* lightweight toast */ const d=document.createElement('div'); d.textContent=t; d.style.cssText='position:absolute;top:20px;left:50%;transform:translateX(-50%);background:#ff4655;padding:8px 16px;border-radius:6px;z-index:99;font-weight:bold;'; document.getElementById('app').appendChild(d); setTimeout(()=>d.remove(),1500); }
 
@@ -1409,7 +1474,10 @@ addEventListener('contextmenu',e=>{ if(inMatch) e.preventDefault(); });
 // ============================================================
 //  WIRE BUTTONS
 // ============================================================
-document.getElementById('btnPlay').onclick=()=>{ buildMapCards(); goto('mapSelect'); };
+document.getElementById('btnRanked').onclick=()=>{ gameMode='ranked'; ensureRankedLoadout(); buildMapCards(); goto('mapSelect'); };
+document.getElementById('btnPractice').onclick=()=>{ gameMode='practice'; buildMapCards(); goto('mapSelect'); };
+document.getElementById('btnTasks').onclick=()=>{ buildTasks(); goto('tasks'); };
+document.getElementById('tasksBack').onclick=()=>goto('menu');
 document.getElementById('btnShop').onclick=()=>{ buildShop(); goto('shop'); };
 document.getElementById('btnFull').onclick=()=>{ goFullscreen(); };
 document.getElementById('btnHelp').onclick=()=>goto('help');
@@ -1499,6 +1567,7 @@ function initTouch(){
 // ============================================================
 initThree();
 initTouch();
+ensureTasks();
 refreshKeyUI();
 loop();
 </script>
