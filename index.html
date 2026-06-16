@@ -542,6 +542,7 @@ function buildMap(id){
   sun.shadow.mapSize.set(2048,2048); sun.shadow.bias=-0.0004;
   const s=120; sun.shadow.camera.left=-s; sun.shadow.camera.right=s; sun.shadow.camera.top=s; sun.shadow.camera.bottom=-s; sun.shadow.camera.far=300;
   scene.add(sun);
+  setupMuzzle();   // (re)create the pooled muzzle flash — clearWorld wiped the old one
 
   // ground (subtle grid texture for depth)
   const groundMat = new THREE.MeshStandardMaterial({ color:M.ground, roughness:0.95, metalness:0.0, map:gridTexture() });
@@ -1258,6 +1259,7 @@ function loop(){
     updateGrenades(dt);
     updateProjectiles(dt);
     updateTracers(dt);
+    updateMuzzle(dt);
     // auto-fire for auto / auto-projectile weapons
     if(mouseDown){ const cw=curWeapon(); if(cw.type==='auto' || cw.autoFire) tryShoot(); }
   }
@@ -1301,13 +1303,28 @@ function updateViewmodel(dt){
   }
 }
 
-// muzzle flash (player or world pos)
+// pooled muzzle flash — ONE reusable light + sprite (creating lights per-shot recompiles shaders => lag)
+let _mzLight=null, _mzSprite=null, _mzT=0;
+function setupMuzzle(){
+  _mzLight=new THREE.PointLight(0xffd27f, 0, 16, 2); scene.add(_mzLight);
+  _mzSprite=new THREE.Mesh(new THREE.SphereGeometry(0.16,8,8), new THREE.MeshBasicMaterial({color:0xffe7a0, transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false}));
+  _mzSprite.visible=false; scene.add(_mzSprite); _mzT=0;
+}
 function muzzleFlash(fromPos, toPos){
-  const pos = fromPos || camera.getWorldPosition(new THREE.Vector3()).add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(1.2));
-  const fl=new THREE.PointLight(0xffd27f, 9, 18, 2); fl.position.copy(pos); scene.add(fl);
-  const spr=new THREE.Mesh(new THREE.SphereGeometry(0.28,8,8), new THREE.MeshBasicMaterial({color:0xffe7a0, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false}));
-  spr.position.copy(pos); scene.add(spr);
-  setTimeout(()=>{ scene.remove(fl); scene.remove(spr); spr.geometry.dispose(); spr.material.dispose(); },60);
+  if(!_mzLight) return;
+  let pos;
+  if(fromPos) pos=fromPos.clone();
+  else { const fwd=camera.getWorldDirection(new THREE.Vector3()); const right=new THREE.Vector3().crossVectors(fwd,camera.up).normalize();
+    pos=camera.getWorldPosition(new THREE.Vector3()).addScaledVector(fwd,1.3).addScaledVector(right,0.35).addScaledVector(camera.up,-0.25); }
+  _mzLight.position.copy(pos); _mzLight.intensity=5;
+  _mzSprite.position.copy(pos); _mzSprite.visible=true; _mzSprite.material.opacity=0.6;
+  _mzT=0.05;
+}
+function updateMuzzle(dt){
+  if(_mzT>0){ _mzT-=dt;
+    if(_mzT<=0){ _mzLight.intensity=0; _mzSprite.visible=false; }
+    else { const k=Math.pow(0.0005,dt); _mzLight.intensity*=k; _mzSprite.material.opacity*=k; }
+  }
 }
 function impact(point){
   const s=new THREE.Mesh(new THREE.SphereGeometry(0.12,8,8), new THREE.MeshBasicMaterial({color:0xffd27f, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending, depthWrite:false}));
