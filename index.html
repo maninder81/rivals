@@ -68,7 +68,7 @@
   .btn.red { background: linear-gradient(180deg,#ff4655,#c92a38); border-color:#ff7080; }
   .btn.small { font-size: 14px; padding: 8px 16px; }
 
-  .panel { background: rgba(15,20,32,.85); border: 1px solid #2a3142; border-radius: 10px; padding: 24px; max-width: 920px; width: 92%; }
+  .panel { background: rgba(15,20,32,.85); border: 1px solid #2a3142; border-radius: 10px; padding: 24px; max-width: 920px; width: 92%; max-height: 90vh; overflow-y: auto; }
   .panel h2 { font-size: 26px; margin-bottom: 4px; letter-spacing: 2px; }
   .panel .sub { color: #8a93a6; font-size: 13px; margin-bottom: 18px; }
 
@@ -312,24 +312,56 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 // ============================================================
 //  DATA: weapons (Rivals-style full arsenal)
 // ============================================================
+// Full Rivals roster. Stats calibrated to the in-game Sniper card (50 dmg, x3 crit,
+// 1.5s cooldown -> 40rpm, 4/12 ammo, 1.43s reload, -20% move, 15deg hip / 0deg scoped).
+// spread is in radians; crit = headshot multiplier (default 2 if omitted).
 const WEAPONS = {
-  // ---- PRIMARY ---- (damage lowered for longer time-to-kill)
-  ak12:    { name:'AK-12',    slot:'primary', type:'auto',  dmg:15, rpm:600, mag:30, reserve:120, reload:2.2, spread:0.018, range:120, speed:1.0, free:true },
-  ar:      { name:'AR-15',    slot:'primary', type:'auto',  dmg:13, rpm:720, mag:30, reserve:120, reload:2.0, spread:0.014, range:130, speed:1.0, cost:120 },
-  smg:     { name:'MP9 SMG',  slot:'primary', type:'auto',  dmg:10, rpm:900, mag:32, reserve:128, reload:1.8, spread:0.026, range:70,  speed:1.12, cost:120 },
-  shotgun: { name:'Shotgun',  slot:'primary', type:'shotgun',dmg:7,  rpm:80, mag:7,  reserve:35,  reload:2.6, spread:0.09, range:35, pellets:9, speed:0.95, cost:200 },
-  sniper:  { name:'Sniper',   slot:'primary', type:'sniper', dmg:50, crit:3, rpm:40, mag:4, reserve:12, reload:1.43, spread:0.26, aimSpread:0, range:300, speed:0.8, scope:true, scopeZoom:6, cost:75 },
-  // ---- SECONDARY ----
-  deagle:  { name:'Deagle',   slot:'secondary', type:'semi', dmg:34, rpm:260, mag:7,  reserve:35, reload:1.7, spread:0.01, range:90, speed:1.05, free:true },
-  glock:   { name:'Glock-18', slot:'secondary', type:'auto', dmg:15, rpm:420, mag:17, reserve:68, reload:1.5, spread:0.022, range:70, speed:1.08, cost:80 },
-  revolver:{ name:'Revolver', slot:'secondary', type:'semi', dmg:44, rpm:160, mag:6,  reserve:24, reload:2.0, spread:0.008, range:100, speed:1.0, cost:120 },
-  // ---- MELEE ----
-  knife:   { name:'Knife',    slot:'melee', type:'melee', dmg:35, rpm:160, range:3.0, speed:1.18, free:true },
-  bat:     { name:'Bat',      slot:'melee', type:'melee', dmg:48, rpm:110, range:3.4, speed:1.1, cost:60 },
-  katana:  { name:'Katana',   slot:'melee', type:'melee', dmg:58, rpm:130, range:3.8, speed:1.14, cost:160 },
-  // ---- THROWABLE ----
-  frag:    { name:'Frag Grenade', slot:'throwable', type:'grenade', dmg:60, radius:7, count:2, free:true },
-  molotov: { name:'Molotov',      slot:'throwable', type:'grenade', dmg:32, radius:6, count:2, cost:100, fire:true },
+  // ================= PRIMARY =================
+  assault:        { name:'Assault Rifle',  slot:'primary', type:'auto',  dmg:14, crit:1.5, rpm:600, mag:30, reserve:120, reload:2.2, spread:0.030, aimSpread:0.010, range:130, speed:1.0, free:true },
+  energyrifle:    { name:'Energy Rifle',   slot:'primary', type:'auto',  dmg:16, crit:1.5, rpm:480, mag:24, reserve:96,  reload:2.0, spread:0.022, aimSpread:0.006, range:140, speed:0.98, cost:90 },
+  burstrifle:     { name:'Burst Rifle',    slot:'primary', type:'burst',  dmg:17, crit:2,   rpm:260, burst:3, mag:27, reserve:108, reload:2.1, spread:0.020, aimSpread:0.004, range:130, speed:1.0, cost:80 },
+  minigun:        { name:'Minigun',        slot:'primary', type:'auto',  dmg:9,  crit:1.25, rpm:1100, mag:100, reserve:200, reload:4.0, spread:0.055, aimSpread:0.03, range:90, speed:0.7, cost:120 },
+  paintball:      { name:'Paintball Gun',  slot:'primary', type:'auto',  dmg:11, crit:1.5, rpm:700, mag:40, reserve:160, reload:2.0, spread:0.038, aimSpread:0.014, range:80, speed:1.05, cost:40 },
+  flamethrower:   { name:'Flamethrower',   slot:'primary', type:'auto',  dmg:5,  crit:1,   rpm:1200, mag:100, reserve:100, reload:3.0, spread:0.12, aimSpread:0.10, range:20, speed:0.85, fire:true, projColor:0xff7a2a, cost:100 },
+  bow:            { name:'Bow',            slot:'primary', type:'projectile', dmg:48, crit:2, rpm:70, mag:1, reserve:24, reload:1.0, spread:0.004, range:220, speed:0.95, projSpeed:95, projGrav:9, projColor:0xc9a36a, cost:60 },
+  crossbow:       { name:'Crossbow',       slot:'primary', type:'projectile', dmg:60, crit:2, rpm:55, mag:1, reserve:18, reload:1.4, spread:0.002, range:240, speed:0.92, projSpeed:130, projGrav:4, projColor:0xc9a36a, cost:90 },
+  gunblade:       { name:'Gunblade',       slot:'primary', type:'semi',  dmg:30, crit:2, rpm:200, mag:8, reserve:40, reload:1.8, spread:0.010, aimSpread:0.004, range:90, speed:1.08, cost:110 },
+  rpg:            { name:'RPG',            slot:'primary', type:'projectile', dmg:80, radius:7, rpm:40, mag:1, reserve:6, reload:3.0, spread:0.005, range:250, speed:0.8, projSpeed:55, projGrav:5, projColor:0x444a55, cost:150 },
+  grenadelauncher:{ name:'Grenade Launcher',slot:'primary', type:'projectile', dmg:58, radius:6, rpm:70, mag:4, reserve:16, reload:2.6, spread:0.012, range:140, speed:0.92, projSpeed:42, projGrav:16, projColor:0x3a4150, cost:120 },
+  shotgun:        { name:'Shotgun',        slot:'primary', type:'shotgun', dmg:8, crit:1.5, rpm:80, mag:7, reserve:35, reload:2.6, spread:0.09, range:38, pellets:9, speed:0.95, cost:50 },
+  sniper:         { name:'Sniper',         slot:'primary', type:'sniper', dmg:50, crit:3, rpm:40, mag:4, reserve:12, reload:1.43, spread:0.26, aimSpread:0, range:300, speed:0.8, scope:true, scopeZoom:6, cost:75 },
+  scepter:        { name:'Scepter',        slot:'primary', type:'projectile', dmg:38, radius:4, crit:1.5, rpm:120, mag:10, reserve:40, reload:2.2, spread:0.010, range:130, speed:1.0, projSpeed:75, projColor:0xb060ff, cost:110 },
+
+  // ================= SECONDARY =================
+  handgun:        { name:'Handgun',        slot:'secondary', type:'semi', dmg:18, crit:2, rpm:360, mag:12, reserve:60, reload:1.4, spread:0.012, aimSpread:0.004, range:80, speed:1.10, free:true },
+  warper:         { name:'Warper',         slot:'secondary', type:'projectile', dmg:14, crit:2, rpm:200, mag:6, reserve:30, reload:1.6, spread:0.010, range:100, speed:1.15, projSpeed:90, projColor:0x66e0ff, cost:70 },
+  energypistols:  { name:'Energy Pistols', slot:'secondary', type:'auto', dmg:10, crit:1.5, rpm:640, mag:28, reserve:112, reload:1.6, spread:0.030, aimSpread:0.012, range:70, speed:1.12, projColor:0x66e0ff, cost:80 },
+  exogun:         { name:'Exogun',         slot:'secondary', type:'shotgun', dmg:6, crit:1.5, rpm:150, mag:6, reserve:30, reload:1.9, spread:0.085, range:30, pellets:6, speed:1.08, cost:90 },
+  slingshot:      { name:'Slingshot',      slot:'secondary', type:'projectile', dmg:24, crit:2, rpm:150, mag:5, reserve:25, reload:1.5, spread:0.006, range:120, speed:1.12, projSpeed:85, projGrav:10, projColor:0x9aa, cost:40 },
+  daggers:        { name:'Daggers',        slot:'secondary', type:'projectile', dmg:28, crit:2, rpm:240, mag:4, reserve:24, reload:1.4, spread:0.010, range:65, speed:1.18, projSpeed:75, projColor:0xcfd6e0, cost:70 },
+  flaregun:       { name:'Flare Gun',      slot:'secondary', type:'projectile', dmg:30, radius:3, rpm:90, mag:1, reserve:8, reload:1.6, spread:0.008, range:100, speed:1.05, fire:true, projSpeed:60, projGrav:6, projColor:0xff7a2a, cost:60 },
+  revolver:       { name:'Revolver',       slot:'secondary', type:'semi', dmg:44, crit:2, rpm:160, mag:6, reserve:24, reload:2.0, spread:0.008, aimSpread:0.003, range:100, speed:1.0, cost:120 },
+  shorty:         { name:'Shorty',         slot:'secondary', type:'shotgun', dmg:7, crit:1.5, rpm:180, mag:2, reserve:16, reload:2.2, spread:0.10, range:26, pellets:8, speed:1.10, cost:50 },
+  spray:          { name:'Spray',          slot:'secondary', type:'auto', dmg:7, crit:1.25, rpm:1000, mag:40, reserve:120, reload:2.0, spread:0.05, range:45, speed:1.12, cost:40 },
+  uzi:            { name:'Uzi',            slot:'secondary', type:'auto', dmg:9, crit:1.5, rpm:950, mag:25, reserve:100, reload:1.7, spread:0.040, aimSpread:0.018, range:60, speed:1.15, cost:70 },
+  glasscannon:    { name:'Glass Cannon',   slot:'secondary', type:'semi', dmg:120, crit:2, rpm:55, mag:1, reserve:6, reload:2.4, spread:0.004, aimSpread:0, range:160, speed:0.95, cost:140 },
+
+  // ================= MELEE =================
+  fists:          { name:'Fists',          slot:'melee', type:'melee', dmg:20, crit:2,   rpm:240, range:2.6, speed:1.20, free:true },
+  knife:          { name:'Knife',          slot:'melee', type:'melee', dmg:35, crit:2,   rpm:160, range:3.0, speed:1.18, free:true },
+  trowel:         { name:'Trowel',         slot:'melee', type:'melee', dmg:40, crit:1.5, rpm:150, range:2.8, speed:1.10, cost:20 },
+  riotshield:     { name:'Riot Shield',    slot:'melee', type:'melee', dmg:30, crit:1.5, rpm:100, range:3.0, speed:0.80, cost:80 },
+  chainsaw:       { name:'Chainsaw',       slot:'melee', type:'melee', dmg:25, crit:1.5, rpm:360, range:3.2, speed:0.95, cost:120 },
+  spear:          { name:'Spear',          slot:'melee', type:'melee', dmg:60, crit:2,   rpm:110, range:5.0, speed:1.05, cost:90 },
+  katana:         { name:'Katana',         slot:'melee', type:'melee', dmg:58, crit:1.5, rpm:130, range:3.8, speed:1.14, cost:160 },
+  battleaxe:      { name:'Battle Axe',     slot:'melee', type:'melee', dmg:75, crit:1.5, rpm:90,  range:3.6, speed:1.00, cost:100 },
+  scythe:         { name:'Scythe',         slot:'melee', type:'melee', dmg:70, crit:2,   rpm:120, range:4.2, speed:1.05, cost:140 },
+  maul:           { name:'Maul',           slot:'melee', type:'melee', dmg:90, crit:1.5, rpm:60,  range:3.6, speed:0.85, cost:110 },
+  glastshard:     { name:'Glast Shard',    slot:'melee', type:'melee', dmg:65, crit:2.5, rpm:130, range:3.6, speed:1.10, cost:200 },
+
+  // ================= THROWABLE =================
+  frag:           { name:'Frag Grenade',   slot:'throwable', type:'grenade', dmg:60, radius:7, count:2, free:true },
+  molotov:        { name:'Molotov',        slot:'throwable', type:'grenade', dmg:32, radius:6, count:2, cost:100, fire:true },
 };
 
 const SLOTS = ['primary','secondary','melee','throwable'];
@@ -357,9 +389,11 @@ const MAX_HP = 150;           // starting health for both player and bots
 const SAVE_KEY = 'bloxrivals_save_v1';
 let save = loadSave();
 function loadSave(){
-  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if(s) return s; } catch(e){}
-  const unlocked = {}; for(const k in WEAPONS){ if(WEAPONS[k].free) unlocked[k]=true; }
-  return { keys: 0, unlocked };
+  let s=null; try{ s=JSON.parse(localStorage.getItem(SAVE_KEY)); }catch(e){}
+  if(!s || typeof s!=='object') s={ keys:0, unlocked:{} };
+  if(!s.unlocked) s.unlocked={};
+  for(const k in WEAPONS){ if(WEAPONS[k].free) s.unlocked[k]=true; }   // always grant free starters
+  return s;
 }
 function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
 function isUnlocked(id){ return !!save.unlocked[id]; }
@@ -371,10 +405,10 @@ function addKeys(n){ save.keys += n; persist(); refreshKeyUI(); }
 let scene, camera, renderer, controls, clock;
 let player, world = { colliders: [], obstacles: [] };
 let bots = [];
-let bullets = [], grenades = [], tracers = [];
+let bullets = [], grenades = [], tracers = [], projectiles = [];
 let running = false, paused = false, inMatch = false;
 let selectedMap = 'sandstorm';
-let myLoadout = { primary:'ak12', secondary:'deagle', melee:'knife', throwable:'frag' };
+let myLoadout = { primary:'assault', secondary:'handgun', melee:'knife', throwable:'frag' };
 let curSlot = 'primary';
 let match = null;
 const keysDown = {};
@@ -599,7 +633,7 @@ function makeBot(){
            weapon:randomBotWeapon(), strafe:Math.random()<0.5?1:-1, strafeT:0,
            lastSeen:null, wander:null, searchT:0, seeT:0 };
 }
-function randomBotWeapon(){ const pool=['ak12','ar','smg','deagle','revolver']; return WEAPONS[pool[Math.floor(Math.random()*pool.length)]]; }
+function randomBotWeapon(){ const pool=['assault','energyrifle','minigun','handgun','revolver','uzi','energypistols']; return WEAPONS[pool[Math.floor(Math.random()*pool.length)]]; }
 function botCount(){ return 1; }   // 1v1
 // reaction = sec of line-of-sight before it can fire; accMax = top hit chance; fireMult = fire-rate slowdown; dmgMult = damage scale
 const DIFFICULTIES = {
@@ -738,12 +772,20 @@ function tryShoot(){
   if(time()-player.lastShot < interval) return;
   if(a.mag<=0){ reload(); return; }
   player.lastShot=time();
+  if(w.type==='burst'){ fireBurst(w); return; }
   a.mag--;
   updateWeaponUI();
   recoil(w);
-
+  if(w.type==='projectile'){ fireProjectile(w); return; }
   const pellets = w.pellets||1;
   for(let i=0;i<pellets;i++) fireRay(w);
+}
+function fireBurst(w){
+  const id=myLoadout[curSlot]; const n=w.burst||3;
+  for(let i=0;i<n;i++){
+    setTimeout(()=>{ if(!running||paused||!player.alive) return; if(myLoadout[curSlot]!==id) return;
+      const a=player.ammo[id]; if(!a||a.mag<=0) return; a.mag--; updateWeaponUI(); recoil(w); fireRay(w); }, i*70);
+  }
 }
 function fireRay(w){
   const cam = camera;
@@ -830,6 +872,41 @@ function explode(pos,w){
   const pd=controls.getObject().position.distanceTo(pos); if(pd<w.radius){ damagePlayer(w.dmg*(1-pd/w.radius)*0.6, null); }
 }
 
+// ---- projectile weapons (bow, crossbow, rpg, grenade launcher, scepter, daggers, ...) ----
+function fireProjectile(w){
+  const origin = camera.getWorldPosition(new THREE.Vector3());
+  const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+  const sp = (ads && w.aimSpread!==undefined) ? w.aimSpread : (w.spread||0);
+  dir.x+=(Math.random()*2-1)*sp; dir.y+=(Math.random()*2-1)*sp; dir.z+=(Math.random()*2-1)*sp; dir.normalize();
+  const r = w.radius?0.4:0.16;
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(r,8,8), new THREE.MeshStandardMaterial({color:w.projColor||0xffe08a, emissive:w.projColor||0xffe08a, emissiveIntensity:0.6}));
+  mesh.position.copy(origin).add(dir.clone().multiplyScalar(1.3)); scene.add(mesh);
+  projectiles.push({ mesh, vel:dir.clone().multiplyScalar(w.projSpeed||60), w, grav:w.projGrav||0, life:4 });
+}
+function updateProjectiles(dt){
+  for(let i=projectiles.length-1;i>=0;i--){
+    const p=projectiles[i]; p.life-=dt;
+    if(p.grav) p.vel.y-=p.grav*dt;
+    const next = p.mesh.position.clone().addScaledVector(p.vel, dt);
+    let hitBot=null;
+    for(const bot of bots){ if(!bot.alive) continue;
+      const c=bot.grp.position.clone(); c.y+=1.8;
+      if(next.distanceTo(c)<1.7){ hitBot=bot; break; }
+    }
+    const groundHit = next.y<=0.3;
+    const wallHit = blocked(next.x,next.z,0.3) && next.y<8;
+    if(hitBot || groundHit || wallHit || p.life<=0){
+      const at = hitBot ? p.mesh.position.clone() : next;
+      if(p.w.radius){ explode(at, p.w); }
+      else if(hitBot){ damageBot(hitBot, p.w.dmg); showHitmarker(false); }
+      impact(at);
+      scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); projectiles.splice(i,1);
+      continue;
+    }
+    p.mesh.position.copy(next);
+  }
+}
+
 // ============================================================
 //  DAMAGE / DEATH
 // ============================================================
@@ -842,6 +919,8 @@ function damageBot(bot,dmg){
 // full health, full ammo, primary equipped, fixed opposite-side spawns.
 function resetSkirmish(){
   if(!inMatch) return;
+  for(const p of projectiles){ scene.remove(p.mesh); } projectiles=[];
+  for(const g of grenades){ scene.remove(g.mesh); } grenades=[];
   player.hp=MAX_HP; player.alive=true; player.reloading=false; player.crouch=false; ads=false;
   initAmmo();
   const ps=startPos(true); controls.getObject().position.set(ps.x, player.height, ps.z);
@@ -888,7 +967,7 @@ function startMatch(){
   camera.fov=BASE_FOV; camera.updateProjectionMatrix();
   buildMap(selectedMap);
   bots=[]; for(let i=0;i<botCount();i++) bots.push(makeBot());
-  bullets=[]; grenades=[];
+  bullets=[]; grenades=[]; projectiles=[];
   spawnPlayer();
   updateAllUI();
   if(IS_TOUCH) updateMobileSlots();
@@ -1013,6 +1092,7 @@ function loop(){
     updatePlayer(dt);
     updateBots(dt);
     updateGrenades(dt);
+    updateProjectiles(dt);
     updateTracers(dt);
     // auto-fire for auto weapons
     if(mouseDown && curWeapon().type==='auto') tryShoot();
