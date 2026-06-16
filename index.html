@@ -318,7 +318,7 @@ const WEAPONS = {
   ar:      { name:'AR-15',    slot:'primary', type:'auto',  dmg:13, rpm:720, mag:30, reserve:120, reload:2.0, spread:0.014, range:130, speed:1.0, cost:120 },
   smg:     { name:'MP9 SMG',  slot:'primary', type:'auto',  dmg:10, rpm:900, mag:32, reserve:128, reload:1.8, spread:0.026, range:70,  speed:1.12, cost:120 },
   shotgun: { name:'Shotgun',  slot:'primary', type:'shotgun',dmg:7,  rpm:80, mag:7,  reserve:35,  reload:2.6, spread:0.09, range:35, pellets:9, speed:0.95, cost:200 },
-  sniper:  { name:'Sniper',   slot:'primary', type:'sniper', dmg:65, rpm:50, mag:5,  reserve:20,  reload:2.8, spread:0.002,range:300, speed:0.9, scope:true, cost:300 },
+  sniper:  { name:'Sniper',   slot:'primary', type:'sniper', dmg:50, crit:3, rpm:40, mag:4, reserve:12, reload:1.43, spread:0.26, aimSpread:0, range:300, speed:0.8, scope:true, scopeZoom:6, cost:75 },
   // ---- SECONDARY ----
   deagle:  { name:'Deagle',   slot:'secondary', type:'semi', dmg:34, rpm:260, mag:7,  reserve:35, reload:1.7, spread:0.01, range:90, speed:1.05, free:true },
   glock:   { name:'Glock-18', slot:'secondary', type:'auto', dmg:15, rpm:420, mag:17, reserve:68, reload:1.5, spread:0.022, range:70, speed:1.08, cost:80 },
@@ -749,7 +749,9 @@ function fireRay(w){
   const cam = camera;
   const dir = new THREE.Vector3(); cam.getWorldDirection(dir);
   // spread
-  const sp = w.spread*(player.vel.length()>2?1.6:1)*(ads?0.4:1);
+  const moving = player.vel.length()>2;
+  const aimSp = (w.aimSpread!==undefined ? w.aimSpread : w.spread*0.4);
+  const sp = (ads ? aimSp : w.spread) * (moving?1.5:1);
   dir.x+=(Math.random()*2-1)*sp; dir.y+=(Math.random()*2-1)*sp; dir.z+=(Math.random()*2-1)*sp;
   dir.normalize();
   const origin = cam.getWorldPosition(new THREE.Vector3());
@@ -769,7 +771,7 @@ function fireRay(w){
 
   let end;
   if(hitBot && hitDist<wallDist){
-    let dmg=w.dmg*(headshot?2:1);
+    let dmg = headshot ? w.dmg*(w.crit||2) : w.dmg;
     damageBot(hitBot,dmg);
     end = origin.clone().add(dir.clone().multiplyScalar(hitDist));
     showHitmarker(headshot);
@@ -989,7 +991,7 @@ function updateAim(dt){
   const w=curWeapon();
   const canADS = w.type!=='melee' && w.type!=='grenade';
   let target=BASE_FOV;
-  if(ads && canADS) target = w.scope ? BASE_FOV/3.4 : BASE_FOV/1.4;
+  if(ads && canADS) target = BASE_FOV / (w.scope ? (w.scopeZoom||6) : (w.adsZoom||1.7));
   camera.fov += (target-camera.fov)*Math.min(1,dt*14);
   camera.updateProjectionMatrix();
   const scoped = ads && canADS && w.scope && camera.fov < BASE_FOV*0.6;
