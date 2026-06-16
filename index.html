@@ -133,18 +133,17 @@
   #mSlots .ms.sel { border-color:#ffd34d; background:rgba(255,211,77,.25); }
   /* move ammo readout clear of the right-hand button cluster on touch */
   body.touch #bottomRight { right:250px; bottom:24px; }
-  /* make all menu screens scrollable on touch devices (incl. wide iPads) */
-  body.touch .screen { justify-content:flex-start; align-items:center; overflow-y:auto; -webkit-overflow-scrolling:touch; touch-action:pan-y; padding:16px 0 32px; }
-  body.touch .panel  { max-height:none; overflow:visible; margin:auto; }
+  /* Touch scrolling: the PANEL itself scrolls (a block element → native momentum,
+     no flexbox snap-back). The screen stays flex-centered and does NOT scroll. */
+  body.touch .panel  { max-height:88vh; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; touch-action:pan-y; }
   body.touch .shopGrid { max-height:none; overflow:visible; }
 
   /* ===== Responsive menus (phones / tablets) ===== */
-  @media (max-width:820px){
+  /* Phone layout — gated to touch (coarse pointer) so laptops/desktops are never affected */
+  @media (max-width:820px) and (pointer:coarse){
     h1.logo { font-size:40px; letter-spacing:2px; }
-    /* one scroll container per screen; margin:auto keeps it centered when it fits, scrolls from top when tall */
-    .screen { justify-content:flex-start; align-items:center; overflow-y:auto; -webkit-overflow-scrolling:touch; touch-action:pan-y; padding:14px 0 30px; }
-    .panel { padding:14px; max-height:none; overflow:visible; margin:auto; }
-    .shopGrid { max-height:none; overflow:visible; }
+    .screen { padding:10px 0; }
+    .panel { padding:14px; }
     .panel h2 { font-size:20px; }
     .grid.maps, .grid.loadout, .shopGrid { grid-template-columns:repeat(2,1fr); }
     .btn { font-size:16px; padding:10px 18px; }
@@ -154,9 +153,8 @@
     #scoreRow .you, #scoreRow .bot { font-size:24px; }
     #pauseHint { display:none; }
   }
-  @media (max-width:560px){
-    .grid.loadout, .shopGrid { grid-template-columns:1fr 1fr; }
-    .grid.maps { grid-template-columns:1fr 1fr; }
+  @media (max-width:560px) and (pointer:coarse){
+    .grid.loadout, .shopGrid, .grid.maps { grid-template-columns:1fr 1fr; }
   }
 </style>
 </head>
