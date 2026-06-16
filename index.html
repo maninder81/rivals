@@ -311,23 +311,23 @@ import * as THREE from 'three';
 //  DATA: weapons (Rivals-style full arsenal)
 // ============================================================
 const WEAPONS = {
-  // ---- PRIMARY ----
-  ak12:    { name:'AK-12',    slot:'primary', type:'auto',  dmg:26, rpm:600, mag:30, reserve:120, reload:2.2, spread:0.018, range:120, speed:1.0, free:true },
-  ar:      { name:'AR-15',    slot:'primary', type:'auto',  dmg:22, rpm:720, mag:30, reserve:120, reload:2.0, spread:0.014, range:130, speed:1.0, cost:120 },
-  smg:     { name:'MP9 SMG',  slot:'primary', type:'auto',  dmg:16, rpm:900, mag:32, reserve:128, reload:1.8, spread:0.026, range:70,  speed:1.12, cost:120 },
-  shotgun: { name:'Shotgun',  slot:'primary', type:'shotgun',dmg:11, rpm:80, mag:7,  reserve:35,  reload:2.6, spread:0.09, range:35, pellets:9, speed:0.95, cost:200 },
-  sniper:  { name:'Sniper',   slot:'primary', type:'sniper', dmg:100,rpm:50, mag:5,  reserve:20,  reload:2.8, spread:0.002,range:300, speed:0.9, scope:true, cost:300 },
+  // ---- PRIMARY ---- (damage lowered for longer time-to-kill)
+  ak12:    { name:'AK-12',    slot:'primary', type:'auto',  dmg:15, rpm:600, mag:30, reserve:120, reload:2.2, spread:0.018, range:120, speed:1.0, free:true },
+  ar:      { name:'AR-15',    slot:'primary', type:'auto',  dmg:13, rpm:720, mag:30, reserve:120, reload:2.0, spread:0.014, range:130, speed:1.0, cost:120 },
+  smg:     { name:'MP9 SMG',  slot:'primary', type:'auto',  dmg:10, rpm:900, mag:32, reserve:128, reload:1.8, spread:0.026, range:70,  speed:1.12, cost:120 },
+  shotgun: { name:'Shotgun',  slot:'primary', type:'shotgun',dmg:7,  rpm:80, mag:7,  reserve:35,  reload:2.6, spread:0.09, range:35, pellets:9, speed:0.95, cost:200 },
+  sniper:  { name:'Sniper',   slot:'primary', type:'sniper', dmg:65, rpm:50, mag:5,  reserve:20,  reload:2.8, spread:0.002,range:300, speed:0.9, scope:true, cost:300 },
   // ---- SECONDARY ----
-  deagle:  { name:'Deagle',   slot:'secondary', type:'semi', dmg:55, rpm:260, mag:7,  reserve:35, reload:1.7, spread:0.01, range:90, speed:1.05, free:true },
-  glock:   { name:'Glock',    slot:'secondary', type:'semi', dmg:24, rpm:380, mag:17, reserve:68, reload:1.5, spread:0.018, range:70, speed:1.08, cost:80 },
-  revolver:{ name:'Revolver', slot:'secondary', type:'semi', dmg:72, rpm:160, mag:6,  reserve:24, reload:2.0, spread:0.008, range:100, speed:1.0, cost:120 },
+  deagle:  { name:'Deagle',   slot:'secondary', type:'semi', dmg:34, rpm:260, mag:7,  reserve:35, reload:1.7, spread:0.01, range:90, speed:1.05, free:true },
+  glock:   { name:'Glock',    slot:'secondary', type:'semi', dmg:15, rpm:380, mag:17, reserve:68, reload:1.5, spread:0.018, range:70, speed:1.08, cost:80 },
+  revolver:{ name:'Revolver', slot:'secondary', type:'semi', dmg:44, rpm:160, mag:6,  reserve:24, reload:2.0, spread:0.008, range:100, speed:1.0, cost:120 },
   // ---- MELEE ----
-  knife:   { name:'Knife',    slot:'melee', type:'melee', dmg:55, rpm:160, range:3.0, speed:1.18, free:true },
-  bat:     { name:'Bat',      slot:'melee', type:'melee', dmg:75, rpm:110, range:3.4, speed:1.1, cost:60 },
-  katana:  { name:'Katana',   slot:'melee', type:'melee', dmg:90, rpm:130, range:3.8, speed:1.14, cost:160 },
+  knife:   { name:'Knife',    slot:'melee', type:'melee', dmg:35, rpm:160, range:3.0, speed:1.18, free:true },
+  bat:     { name:'Bat',      slot:'melee', type:'melee', dmg:48, rpm:110, range:3.4, speed:1.1, cost:60 },
+  katana:  { name:'Katana',   slot:'melee', type:'melee', dmg:58, rpm:130, range:3.8, speed:1.14, cost:160 },
   // ---- THROWABLE ----
-  frag:    { name:'Frag Grenade', slot:'throwable', type:'grenade', dmg:90, radius:7, count:2, free:true },
-  molotov: { name:'Molotov',      slot:'throwable', type:'grenade', dmg:50, radius:6, count:2, cost:100, fire:true },
+  frag:    { name:'Frag Grenade', slot:'throwable', type:'grenade', dmg:60, radius:7, count:2, free:true },
+  molotov: { name:'Molotov',      slot:'throwable', type:'grenade', dmg:32, radius:6, count:2, cost:100, fire:true },
 };
 
 const SLOTS = ['primary','secondary','melee','throwable'];
