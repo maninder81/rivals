@@ -336,7 +336,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 const WEAPONS = {
   // ================= PRIMARY =================  (Assault Rifle = 10 dmg baseline; everything scaled to it)
   assault:        { name:'Assault Rifle',  slot:'primary', type:'auto',  dmg:10, crit:1.5, rpm:600, mag:30, reserve:120, reload:2.2, spread:0.030, aimSpread:0.010, range:130, speed:1.0, free:true },
-  energyrifle:    { name:'Energy Rifle',   slot:'primary', type:'projectile', autoFire:true, infinite:true, bounces:3, dmg:11, crit:1.5, rpm:480, mag:24, reserve:0, reload:2.0, spread:0.022, aimSpread:0.006, range:140, speed:0.98, projSpeed:110, projGrav:0, projColor:0x66e0ff, cost:90 },
+  energyrifle:    { name:'Energy Rifle',   slot:'primary', type:'projectile', autoFire:true, infinite:true, bounces:3, beam:true, dmg:20, crit:1.5, rpm:480, mag:24, reserve:0, reload:2.0, spread:0.022, aimSpread:0.006, range:140, speed:0.98, projSpeed:110, projGrav:0, projColor:0x66e0ff, cost:90 },
   burstrifle:     { name:'Burst Rifle',    slot:'primary', type:'burst',  dmg:12, crit:2,   rpm:260, burst:3, mag:27, reserve:108, reload:2.1, spread:0.020, aimSpread:0.004, range:130, speed:1.0, cost:80 },
   minigun:        { name:'Minigun',        slot:'primary', type:'auto',  dmg:6,  crit:1.25, rpm:1100, mag:100, reserve:200, reload:4.0, spread:0.055, aimSpread:0.03, range:90, speed:0.7, cost:400 },
   paintball:      { name:'Paintball Gun',  slot:'primary', type:'auto',  dmg:8,  crit:1.5, rpm:700, mag:40, reserve:160, reload:2.0, spread:0.038, aimSpread:0.014, range:80, speed:1.05, cost:400 },
@@ -958,15 +958,23 @@ function explode(pos,w,exclude){
 }
 
 // ---- projectile weapons (bow, crossbow, rpg, grenade launcher, scepter, daggers, ...) ----
+const BEAM_UP = new THREE.Vector3(0,1,0);
 function fireProjectile(w){
   const origin = camera.getWorldPosition(new THREE.Vector3());
   const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
   const sp = (ads && w.aimSpread!==undefined) ? w.aimSpread : (w.spread||0);
   dir.x+=(Math.random()*2-1)*sp; dir.y+=(Math.random()*2-1)*sp; dir.z+=(Math.random()*2-1)*sp; dir.normalize();
-  const r = w.radius?0.4:0.16;
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(r,8,8), new THREE.MeshStandardMaterial({color:w.projColor||0xffe08a, emissive:w.projColor||0xffe08a, emissiveIntensity:0.6}));
+  let mesh;
+  if(w.beam){
+    mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.09,3.6,8),
+      new THREE.MeshBasicMaterial({color:w.projColor||0x66e0ff, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false}));
+    mesh.quaternion.setFromUnitVectors(BEAM_UP, dir.clone().normalize());
+  } else {
+    const r = w.radius?0.4:0.16;
+    mesh = new THREE.Mesh(new THREE.SphereGeometry(r,8,8), new THREE.MeshStandardMaterial({color:w.projColor||0xffe08a, emissive:w.projColor||0xffe08a, emissiveIntensity:0.6}));
+  }
   mesh.position.copy(origin).add(dir.clone().multiplyScalar(1.3)); scene.add(mesh);
-  projectiles.push({ mesh, vel:dir.clone().multiplyScalar(w.projSpeed||60), w, grav:w.projGrav||0, life:4, bounces:w.bounces||0 });
+  projectiles.push({ mesh, vel:dir.clone().multiplyScalar(w.projSpeed||60), w, grav:w.projGrav||0, life:4, bounces:w.bounces||0, beam:!!w.beam });
 }
 function updateProjectiles(dt){
   for(let i=projectiles.length-1;i>=0;i--){
@@ -991,6 +999,7 @@ function updateProjectiles(dt){
         if(hz || (!hx&&!hz)) p.vel.z*=-0.85;
       }
       cur.addScaledVector(p.vel, dt);
+      if(p.beam) p.mesh.quaternion.setFromUnitVectors(BEAM_UP, p.vel.clone().normalize());
       impact(cur.clone());
       continue;
     }
@@ -1005,6 +1014,7 @@ function updateProjectiles(dt){
       continue;
     }
     p.mesh.position.copy(next);
+    if(p.beam) p.mesh.quaternion.setFromUnitVectors(BEAM_UP, p.vel.clone().normalize());
   }
 }
 
