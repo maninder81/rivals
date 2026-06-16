@@ -316,52 +316,52 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 // 1.5s cooldown -> 40rpm, 4/12 ammo, 1.43s reload, -20% move, 15deg hip / 0deg scoped).
 // spread is in radians; crit = headshot multiplier (default 2 if omitted).
 const WEAPONS = {
-  // ================= PRIMARY =================
-  assault:        { name:'Assault Rifle',  slot:'primary', type:'auto',  dmg:14, crit:1.5, rpm:600, mag:30, reserve:120, reload:2.2, spread:0.030, aimSpread:0.010, range:130, speed:1.0, free:true },
-  energyrifle:    { name:'Energy Rifle',   slot:'primary', type:'auto',  dmg:16, crit:1.5, rpm:480, mag:24, reserve:96,  reload:2.0, spread:0.022, aimSpread:0.006, range:140, speed:0.98, cost:90 },
-  burstrifle:     { name:'Burst Rifle',    slot:'primary', type:'burst',  dmg:17, crit:2,   rpm:260, burst:3, mag:27, reserve:108, reload:2.1, spread:0.020, aimSpread:0.004, range:130, speed:1.0, cost:80 },
-  minigun:        { name:'Minigun',        slot:'primary', type:'auto',  dmg:9,  crit:1.25, rpm:1100, mag:100, reserve:200, reload:4.0, spread:0.055, aimSpread:0.03, range:90, speed:0.7, cost:120 },
-  paintball:      { name:'Paintball Gun',  slot:'primary', type:'auto',  dmg:11, crit:1.5, rpm:700, mag:40, reserve:160, reload:2.0, spread:0.038, aimSpread:0.014, range:80, speed:1.05, cost:40 },
-  flamethrower:   { name:'Flamethrower',   slot:'primary', type:'auto',  dmg:5,  crit:1,   rpm:1200, mag:100, reserve:100, reload:3.0, spread:0.12, aimSpread:0.10, range:20, speed:0.85, fire:true, projColor:0xff7a2a, cost:100 },
-  bow:            { name:'Bow',            slot:'primary', type:'projectile', dmg:48, crit:2, rpm:70, mag:1, reserve:24, reload:1.0, spread:0.004, range:220, speed:0.95, projSpeed:95, projGrav:9, projColor:0xc9a36a, cost:60 },
-  crossbow:       { name:'Crossbow',       slot:'primary', type:'projectile', dmg:60, crit:2, rpm:55, mag:1, reserve:18, reload:1.4, spread:0.002, range:240, speed:0.92, projSpeed:130, projGrav:4, projColor:0xc9a36a, cost:90 },
-  gunblade:       { name:'Gunblade',       slot:'primary', type:'semi',  dmg:30, crit:2, rpm:200, mag:8, reserve:40, reload:1.8, spread:0.010, aimSpread:0.004, range:90, speed:1.08, cost:110 },
-  rpg:            { name:'RPG',            slot:'primary', type:'projectile', dmg:80, radius:7, rpm:40, mag:1, reserve:6, reload:3.0, spread:0.005, range:250, speed:0.8, projSpeed:55, projGrav:5, projColor:0x444a55, cost:150 },
-  grenadelauncher:{ name:'Grenade Launcher',slot:'primary', type:'projectile', dmg:58, radius:6, rpm:70, mag:4, reserve:16, reload:2.6, spread:0.012, range:140, speed:0.92, projSpeed:42, projGrav:16, projColor:0x3a4150, cost:120 },
-  shotgun:        { name:'Shotgun',        slot:'primary', type:'shotgun', dmg:8, crit:1.5, rpm:80, mag:7, reserve:35, reload:2.6, spread:0.09, range:38, pellets:9, speed:0.95, cost:50 },
-  sniper:         { name:'Sniper',         slot:'primary', type:'sniper', dmg:50, crit:3, rpm:40, mag:4, reserve:12, reload:1.43, spread:0.26, aimSpread:0, range:300, speed:0.8, scope:true, scopeZoom:6, cost:75 },
-  scepter:        { name:'Scepter',        slot:'primary', type:'projectile', dmg:38, radius:4, crit:1.5, rpm:120, mag:10, reserve:40, reload:2.2, spread:0.010, range:130, speed:1.0, projSpeed:75, projColor:0xb060ff, cost:110 },
+  // ================= PRIMARY =================  (Assault Rifle = 10 dmg baseline; everything scaled to it)
+  assault:        { name:'Assault Rifle',  slot:'primary', type:'auto',  dmg:10, crit:1.5, rpm:600, mag:30, reserve:120, reload:2.2, spread:0.030, aimSpread:0.010, range:130, speed:1.0, free:true },
+  energyrifle:    { name:'Energy Rifle',   slot:'primary', type:'auto',  dmg:11, crit:1.5, rpm:480, mag:24, reserve:96,  reload:2.0, spread:0.022, aimSpread:0.006, range:140, speed:0.98, cost:90 },
+  burstrifle:     { name:'Burst Rifle',    slot:'primary', type:'burst',  dmg:12, crit:2,   rpm:260, burst:3, mag:27, reserve:108, reload:2.1, spread:0.020, aimSpread:0.004, range:130, speed:1.0, cost:80 },
+  minigun:        { name:'Minigun',        slot:'primary', type:'auto',  dmg:6,  crit:1.25, rpm:1100, mag:100, reserve:200, reload:4.0, spread:0.055, aimSpread:0.03, range:90, speed:0.7, cost:120 },
+  paintball:      { name:'Paintball Gun',  slot:'primary', type:'auto',  dmg:8,  crit:1.5, rpm:700, mag:40, reserve:160, reload:2.0, spread:0.038, aimSpread:0.014, range:80, speed:1.05, cost:40 },
+  flamethrower:   { name:'Flamethrower',   slot:'primary', type:'auto',  dmg:4,  crit:1,   rpm:1200, mag:100, reserve:100, reload:3.0, spread:0.12, aimSpread:0.10, range:20, speed:0.85, fire:true, projColor:0xff7a2a, cost:100 },
+  bow:            { name:'Bow',            slot:'primary', type:'projectile', dmg:34, crit:2, rpm:70, mag:1, reserve:24, reload:1.0, spread:0.004, range:220, speed:0.95, projSpeed:95, projGrav:9, projColor:0xc9a36a, cost:60 },
+  crossbow:       { name:'Crossbow',       slot:'primary', type:'projectile', dmg:43, crit:2, rpm:55, mag:1, reserve:18, reload:1.4, spread:0.002, range:240, speed:0.92, projSpeed:130, projGrav:4, projColor:0xc9a36a, cost:90 },
+  gunblade:       { name:'Gunblade',       slot:'primary', type:'semi',  dmg:21, crit:2, rpm:200, mag:8, reserve:40, reload:1.8, spread:0.010, aimSpread:0.004, range:90, speed:1.08, cost:110 },
+  rpg:            { name:'RPG',            slot:'primary', type:'projectile', dmg:50, directDmg:100, radius:7, knockback:24, rpm:40, mag:1, reserve:6, reload:3.0, spread:0.005, range:250, speed:0.8, projSpeed:55, projGrav:5, projColor:0x444a55, cost:150 },
+  grenadelauncher:{ name:'Grenade Launcher',slot:'primary', type:'projectile', dmg:41, radius:6, knockback:16, rpm:70, mag:4, reserve:16, reload:2.6, spread:0.012, range:140, speed:0.92, projSpeed:42, projGrav:16, projColor:0x3a4150, cost:120 },
+  shotgun:        { name:'Shotgun',        slot:'primary', type:'shotgun', dmg:6, crit:1.5, rpm:80, mag:7, reserve:35, reload:2.6, spread:0.09, range:38, pellets:9, speed:0.95, cost:50 },
+  sniper:         { name:'Sniper',         slot:'primary', type:'sniper', dmg:36, crit:3, rpm:40, mag:4, reserve:12, reload:1.43, spread:0.26, aimSpread:0, range:300, speed:0.8, scope:true, scopeZoom:6, cost:75 },
+  scepter:        { name:'Scepter',        slot:'primary', type:'projectile', dmg:27, radius:4, knockback:10, crit:1.5, rpm:120, mag:10, reserve:40, reload:2.2, spread:0.010, range:130, speed:1.0, projSpeed:75, projColor:0xb060ff, cost:110 },
 
   // ================= SECONDARY =================
-  handgun:        { name:'Handgun',        slot:'secondary', type:'semi', dmg:18, crit:2, rpm:360, mag:12, reserve:60, reload:1.4, spread:0.012, aimSpread:0.004, range:80, speed:1.10, free:true },
-  warper:         { name:'Warper',         slot:'secondary', type:'projectile', dmg:14, crit:2, rpm:200, mag:6, reserve:30, reload:1.6, spread:0.010, range:100, speed:1.15, projSpeed:90, projColor:0x66e0ff, cost:70 },
-  energypistols:  { name:'Energy Pistols', slot:'secondary', type:'auto', dmg:10, crit:1.5, rpm:640, mag:28, reserve:112, reload:1.6, spread:0.030, aimSpread:0.012, range:70, speed:1.12, projColor:0x66e0ff, cost:80 },
-  exogun:         { name:'Exogun',         slot:'secondary', type:'shotgun', dmg:6, crit:1.5, rpm:150, mag:6, reserve:30, reload:1.9, spread:0.085, range:30, pellets:6, speed:1.08, cost:90 },
-  slingshot:      { name:'Slingshot',      slot:'secondary', type:'projectile', dmg:24, crit:2, rpm:150, mag:5, reserve:25, reload:1.5, spread:0.006, range:120, speed:1.12, projSpeed:85, projGrav:10, projColor:0x9aa, cost:40 },
-  daggers:        { name:'Daggers',        slot:'secondary', type:'projectile', dmg:28, crit:2, rpm:240, mag:4, reserve:24, reload:1.4, spread:0.010, range:65, speed:1.18, projSpeed:75, projColor:0xcfd6e0, cost:70 },
-  flaregun:       { name:'Flare Gun',      slot:'secondary', type:'projectile', dmg:30, radius:3, rpm:90, mag:1, reserve:8, reload:1.6, spread:0.008, range:100, speed:1.05, fire:true, projSpeed:60, projGrav:6, projColor:0xff7a2a, cost:60 },
-  revolver:       { name:'Revolver',       slot:'secondary', type:'semi', dmg:44, crit:2, rpm:160, mag:6, reserve:24, reload:2.0, spread:0.008, aimSpread:0.003, range:100, speed:1.0, cost:120 },
-  shorty:         { name:'Shorty',         slot:'secondary', type:'shotgun', dmg:7, crit:1.5, rpm:180, mag:2, reserve:16, reload:2.2, spread:0.10, range:26, pellets:8, speed:1.10, cost:50 },
-  spray:          { name:'Spray',          slot:'secondary', type:'auto', dmg:7, crit:1.25, rpm:1000, mag:40, reserve:120, reload:2.0, spread:0.05, range:45, speed:1.12, cost:40 },
-  uzi:            { name:'Uzi',            slot:'secondary', type:'auto', dmg:9, crit:1.5, rpm:950, mag:25, reserve:100, reload:1.7, spread:0.040, aimSpread:0.018, range:60, speed:1.15, cost:70 },
-  glasscannon:    { name:'Glass Cannon',   slot:'secondary', type:'semi', dmg:120, crit:2, rpm:55, mag:1, reserve:6, reload:2.4, spread:0.004, aimSpread:0, range:160, speed:0.95, cost:140 },
+  handgun:        { name:'Handgun',        slot:'secondary', type:'semi', dmg:13, crit:2, rpm:360, mag:12, reserve:60, reload:1.4, spread:0.012, aimSpread:0.004, range:80, speed:1.10, free:true },
+  warper:         { name:'Warper',         slot:'secondary', type:'projectile', dmg:10, crit:2, rpm:200, mag:6, reserve:30, reload:1.6, spread:0.010, range:100, speed:1.15, projSpeed:90, projColor:0x66e0ff, cost:70 },
+  energypistols:  { name:'Energy Pistols', slot:'secondary', type:'auto', dmg:7, crit:1.5, rpm:640, mag:28, reserve:112, reload:1.6, spread:0.030, aimSpread:0.012, range:70, speed:1.12, projColor:0x66e0ff, cost:80 },
+  exogun:         { name:'Exogun',         slot:'secondary', type:'shotgun', dmg:4, crit:1.5, rpm:150, mag:6, reserve:30, reload:1.9, spread:0.085, range:30, pellets:6, speed:1.08, cost:90 },
+  slingshot:      { name:'Slingshot',      slot:'secondary', type:'projectile', dmg:17, crit:2, rpm:150, mag:5, reserve:25, reload:1.5, spread:0.006, range:120, speed:1.12, projSpeed:85, projGrav:10, projColor:0x9aa, cost:40 },
+  daggers:        { name:'Daggers',        slot:'secondary', type:'projectile', dmg:20, crit:2, rpm:240, mag:4, reserve:24, reload:1.4, spread:0.010, range:65, speed:1.18, projSpeed:75, projColor:0xcfd6e0, cost:70 },
+  flaregun:       { name:'Flare Gun',      slot:'secondary', type:'projectile', dmg:21, radius:3, knockback:8, rpm:90, mag:1, reserve:8, reload:1.6, spread:0.008, range:100, speed:1.05, fire:true, projSpeed:60, projGrav:6, projColor:0xff7a2a, cost:60 },
+  revolver:       { name:'Revolver',       slot:'secondary', type:'semi', dmg:31, crit:2, rpm:160, mag:6, reserve:24, reload:2.0, spread:0.008, aimSpread:0.003, range:100, speed:1.0, cost:120 },
+  shorty:         { name:'Shorty',         slot:'secondary', type:'shotgun', dmg:5, crit:1.5, rpm:180, mag:2, reserve:16, reload:2.2, spread:0.10, range:26, pellets:8, speed:1.10, cost:50 },
+  spray:          { name:'Spray',          slot:'secondary', type:'auto', dmg:5, crit:1.25, rpm:1000, mag:40, reserve:120, reload:2.0, spread:0.05, range:45, speed:1.12, cost:40 },
+  uzi:            { name:'Uzi',            slot:'secondary', type:'auto', dmg:6, crit:1.5, rpm:950, mag:25, reserve:100, reload:1.7, spread:0.040, aimSpread:0.018, range:60, speed:1.15, cost:70 },
+  glasscannon:    { name:'Glass Cannon',   slot:'secondary', type:'semi', dmg:86, crit:2, rpm:55, mag:1, reserve:6, reload:2.4, spread:0.004, aimSpread:0, range:160, speed:0.95, cost:140 },
 
   // ================= MELEE =================
-  fists:          { name:'Fists',          slot:'melee', type:'melee', dmg:20, crit:2,   rpm:240, range:2.6, speed:1.20, free:true },
-  knife:          { name:'Knife',          slot:'melee', type:'melee', dmg:35, crit:2,   rpm:160, range:3.0, speed:1.18, free:true },
-  trowel:         { name:'Trowel',         slot:'melee', type:'melee', dmg:40, crit:1.5, rpm:150, range:2.8, speed:1.10, cost:20 },
-  riotshield:     { name:'Riot Shield',    slot:'melee', type:'melee', dmg:30, crit:1.5, rpm:100, range:3.0, speed:0.80, cost:80 },
-  chainsaw:       { name:'Chainsaw',       slot:'melee', type:'melee', dmg:25, crit:1.5, rpm:360, range:3.2, speed:0.95, cost:120 },
-  spear:          { name:'Spear',          slot:'melee', type:'melee', dmg:60, crit:2,   rpm:110, range:5.0, speed:1.05, cost:90 },
-  katana:         { name:'Katana',         slot:'melee', type:'melee', dmg:58, crit:1.5, rpm:130, range:3.8, speed:1.14, cost:160 },
-  battleaxe:      { name:'Battle Axe',     slot:'melee', type:'melee', dmg:75, crit:1.5, rpm:90,  range:3.6, speed:1.00, cost:100 },
-  scythe:         { name:'Scythe',         slot:'melee', type:'melee', dmg:70, crit:2,   rpm:120, range:4.2, speed:1.05, cost:140 },
-  maul:           { name:'Maul',           slot:'melee', type:'melee', dmg:90, crit:1.5, rpm:60,  range:3.6, speed:0.85, cost:110 },
-  glastshard:     { name:'Glast Shard',    slot:'melee', type:'melee', dmg:65, crit:2.5, rpm:130, range:3.6, speed:1.10, cost:200 },
+  fists:          { name:'Fists',          slot:'melee', type:'melee', dmg:14, crit:2,   rpm:240, range:2.6, speed:1.20, free:true },
+  knife:          { name:'Knife',          slot:'melee', type:'melee', dmg:25, crit:2,   rpm:160, range:3.0, speed:1.18, free:true },
+  trowel:         { name:'Trowel',         slot:'melee', type:'melee', dmg:29, crit:1.5, rpm:150, range:2.8, speed:1.10, cost:20 },
+  riotshield:     { name:'Riot Shield',    slot:'melee', type:'melee', dmg:21, crit:1.5, rpm:100, range:3.0, speed:0.80, cost:80 },
+  chainsaw:       { name:'Chainsaw',       slot:'melee', type:'melee', dmg:18, crit:1.5, rpm:360, range:3.2, speed:0.95, cost:120 },
+  spear:          { name:'Spear',          slot:'melee', type:'melee', dmg:43, crit:2,   rpm:110, range:5.0, speed:1.05, cost:90 },
+  katana:         { name:'Katana',         slot:'melee', type:'melee', dmg:41, crit:1.5, rpm:130, range:3.8, speed:1.14, cost:160 },
+  battleaxe:      { name:'Battle Axe',     slot:'melee', type:'melee', dmg:54, crit:1.5, rpm:90,  range:3.6, speed:1.00, cost:100 },
+  scythe:         { name:'Scythe',         slot:'melee', type:'melee', dmg:50, crit:2,   rpm:120, range:4.2, speed:1.05, cost:140 },
+  maul:           { name:'Maul',           slot:'melee', type:'melee', dmg:64, crit:1.5, rpm:60,  range:3.6, speed:0.85, cost:110 },
+  glastshard:     { name:'Glast Shard',    slot:'melee', type:'melee', dmg:46, crit:2.5, rpm:130, range:3.6, speed:1.10, cost:200 },
 
   // ================= THROWABLE =================
-  frag:           { name:'Frag Grenade',   slot:'throwable', type:'grenade', dmg:60, radius:7, count:2, free:true },
-  molotov:        { name:'Molotov',        slot:'throwable', type:'grenade', dmg:32, radius:6, count:2, cost:100, fire:true },
+  frag:           { name:'Frag Grenade',   slot:'throwable', type:'grenade', dmg:43, radius:7, knockback:18, count:2, free:true },
+  molotov:        { name:'Molotov',        slot:'throwable', type:'grenade', dmg:23, radius:6, knockback:8, count:2, cost:100, fire:true },
 };
 
 const SLOTS = ['primary','secondary','melee','throwable'];
@@ -403,7 +403,7 @@ function addKeys(n){ save.keys += n; persist(); refreshKeyUI(); }
 //  STATE
 // ============================================================
 let scene, camera, renderer, controls, clock;
-let player, world = { colliders: [], obstacles: [] };
+let player, world = { colliders: [], obstacles: [], climbs: [] };
 let bots = [];
 let bullets = [], grenades = [], tracers = [], projectiles = [];
 let running = false, paused = false, inMatch = false;
@@ -504,7 +504,7 @@ function clearWorld(){
   // remove everything except controls object
   const keep = controls.getObject();
   for(let i=scene.children.length-1;i>=0;i--){ if(scene.children[i]!==keep) scene.remove(scene.children[i]); }
-  world.colliders=[]; world.obstacles=[];
+  world.colliders=[]; world.obstacles=[]; world.climbs=[];
 }
 
 function buildMap(id){
@@ -534,11 +534,31 @@ function buildMap(id){
 
   // map-specific geometry
   ({ sandstorm:bSandstorm, refinery:bRefinery, castle:bCastle, blockfort:bBlockfort, tundra:bTundra, highrise:bHighrise })[M.build]();
+  // shared verticality: climbable towers + raised platforms with stairs
+  addTiers(M);
 }
 
 // crate helper
 function crate(x,z,s=4,c=0x9c6b3f){ addBox(x,s/2,z,s,s,s,c); }
 function wall(x,z,w,d,h,c){ addBox(x,h/2,z,w,h,d,c); }
+// raised platform (solid tier, walkable top at topY)
+function plat(x,z,w,d,topY,color){ addBox(x, topY/2, z, w, topY, d, color); }
+// short staircase rising to topY (<=4.4) along unit dir (dx,dz)
+function stepRun(x,z,dx,dz,topY,color){
+  const r=3.5, w=8;
+  addBox(x,      (topY*0.5)/2, z,      dx?r:w, topY*0.5, dz?r:w, color);
+  addBox(x+dx*r, topY/2,       z+dz*r, dx?r:w, topY,     dz?r:w, color);
+}
+// climbable wall/tower: top is walkable, sides can be climbed by holding forward into it
+function climbWall(x,z,w,d,h,color){ addBox(x,h/2,z,w,h,d,color); world.climbs.push(world.colliders[world.colliders.length-1]); }
+// verticality added to EVERY map: two raised platforms w/ stairs + two climb towers
+function addTiers(M){
+  const s1=0x6f7888, s2=0x565e6e, twr=0x49505e;
+  plat(-15, 9, 14, 12, 4, s1);  stepRun(-15, 0, 0, 1, 4, s2);   // mid platform (stairs from south)
+  plat(16, -11, 12, 12, 4, s1); stepRun(8, -11, 1, 0, 4, s2);   // mid platform (stairs from west)
+  climbWall(31, 27, 7, 7, 9, twr);    // climbable sniper tower
+  climbWall(-31, -27, 7, 7, 9, twr);  // climbable sniper tower
+}
 
 function bSandstorm(){
   for(const [x,z] of [[-15,-10],[12,-18],[20,8],[-22,14],[0,0],[-8,22],[18,-4],[-25,-20],[26,22]]) crate(x,z,4,0xc28e4e);
@@ -593,7 +613,7 @@ function initAmmo(){
   }
 }
 function spawnPlayer(){
-  player = { hp:MAX_HP, vel:new THREE.Vector3(), onGround:true, height:3.2, crouch:false, alive:true,
+  player = { hp:MAX_HP, vel:new THREE.Vector3(), knock:new THREE.Vector3(), onGround:true, height:3.2, crouch:false, alive:true,
              ammo:{}, lastShot:0, reloading:false, reloadEnd:0, kills:0, deaths:0 };
   initAmmo();
   const p = startPos(true);
@@ -613,6 +633,27 @@ function spawnPoint(forPlayer){ return startPos(forPlayer); }
 function blocked(x,z,r){
   const p=new THREE.Vector3(x,1.5,z);
   for(const b of world.colliders){ if(p.x>b.min.x-r&&p.x<b.max.x+r&&p.z>b.min.z-r&&p.z<b.max.z+r&&b.max.y>0.5) return true; }
+  return false;
+}
+// ---- vertical traversal: stand-on-top, step-up, and climbable surfaces ----
+const STEP = 2.6;   // max height you can step up onto without jumping/climbing
+function surfaceAt(x,z,feetY){
+  let top=0;  // ground top is y=0
+  for(const b of world.colliders){
+    if(x>b.min.x && x<b.max.x && z>b.min.z && z<b.max.z && b.max.y<=feetY+STEP+0.05 && b.max.y>top) top=b.max.y;
+  }
+  return top;
+}
+function wallBlocked(x,z,r,feetY){  // a box is a wall only if its top rises more than a step above your feet
+  for(const b of world.colliders){
+    if(x>b.min.x-r && x<b.max.x+r && z>b.min.z-r && z<b.max.z+r && b.max.y>feetY+STEP+0.05 && b.min.y<feetY+6) return true;
+  }
+  return false;
+}
+function climbAt(x,z,feetY){  // standing next to a climbable surface you haven't topped yet?
+  for(const b of world.climbs){
+    if(x>b.min.x-1.4 && x<b.max.x+1.4 && z>b.min.z-1.4 && z<b.max.z+1.4 && b.max.y>feetY+0.5) return true;
+  }
   return false;
 }
 
@@ -859,17 +900,38 @@ function updateGrenades(dt){
     if(g.t>1.6){ explode(g.mesh.position, g.w); scene.remove(g.mesh); grenades.splice(i,1); }
   }
 }
-function explode(pos,w){
+function applyKnockback(dir, power){
+  const h=dir.clone(); h.y=0; if(h.lengthSq()<0.001) h.set(Math.random()-0.5,0,Math.random()-0.5);
+  h.normalize().multiplyScalar(power);
+  if(!player.knock) player.knock=new THREE.Vector3();
+  player.knock.add(h);
+  player.vel.y = Math.max(player.vel.y, power*0.45+4);   // upward pop
+  player.onGround=false;
+}
+function explode(pos,w,exclude){
   // visual
   const flash=new THREE.Mesh(new THREE.SphereGeometry(w.radius,16,16), new THREE.MeshBasicMaterial({color:w.fire?0xff7a2a:0xffd34d, transparent:true, opacity:.6}));
   flash.position.copy(pos); scene.add(flash);
   let s=0.2; const grow=setInterval(()=>{ s+=0.18; flash.scale.set(s,s,s); flash.material.opacity-=0.06; if(flash.material.opacity<=0){clearInterval(grow); scene.remove(flash);} },16);
-  // damage bots
-  for(const bot of bots){ if(!bot.alive) continue;
-    const d=bot.grp.position.distanceTo(pos); if(d<w.radius){ damageBot(bot, w.dmg*(1-d/w.radius)); }
+  const kb = w.knockback||0;
+  // splash damage + knockback to bots
+  for(const bot of bots){ if(!bot.alive||bot===exclude) continue;
+    const d=bot.grp.position.distanceTo(pos); if(d<w.radius){
+      const f=1-d/w.radius;
+      damageBot(bot, w.dmg*f);
+      if(kb){ const k=new THREE.Vector3().subVectors(bot.grp.position,pos); k.y=0;
+        if(k.lengthSq()>0.01){ k.normalize().multiplyScalar(kb*f);
+          const nx=bot.grp.position.x+k.x, nz=bot.grp.position.z+k.z;
+          if(!blocked(nx,nz,1.2)&&Math.abs(nx)<ARENA-2&&Math.abs(nz)<ARENA-2){ bot.grp.position.x=nx; bot.grp.position.z=nz; } } }
+    }
   }
-  // damage player
-  const pd=controls.getObject().position.distanceTo(pos); if(pd<w.radius){ damagePlayer(w.dmg*(1-pd/w.radius)*0.6, null); }
+  // splash damage + knockback to player
+  const ppos=controls.getObject().position;
+  const pd=ppos.distanceTo(pos); if(pd<w.radius){
+    const f=1-pd/w.radius;
+    damagePlayer(w.dmg*f*0.6, null);
+    if(kb) applyKnockback(new THREE.Vector3().subVectors(ppos,pos), kb*f);
+  }
 }
 
 // ---- projectile weapons (bow, crossbow, rpg, grenade launcher, scepter, daggers, ...) ----
@@ -897,8 +959,10 @@ function updateProjectiles(dt){
     const wallHit = blocked(next.x,next.z,0.3) && next.y<8;
     if(hitBot || groundHit || wallHit || p.life<=0){
       const at = hitBot ? p.mesh.position.clone() : next;
-      if(p.w.radius){ explode(at, p.w); }
-      else if(hitBot){ damageBot(hitBot, p.w.dmg); showHitmarker(false); }
+      if(p.w.radius){
+        if(hitBot){ damageBot(hitBot, p.w.directDmg || p.w.dmg); showHitmarker(true); }  // direct rocket hit
+        explode(at, p.w, hitBot || null);                                                // splash to everyone else
+      } else if(hitBot){ damageBot(hitBot, p.w.dmg); showHitmarker(false); }
       impact(at);
       scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); projectiles.splice(i,1);
       continue;
@@ -1027,20 +1091,27 @@ function updatePlayer(dt){
   if(dir.lengthSq()>0) dir.normalize();
 
   const obj = controls.getObject();
-  const move = dir.multiplyScalar(speed*dt);
-  // collision-aware move
-  const nx = obj.position.x+move.x, nz=obj.position.z+move.z;
-  if(!blocked(nx,obj.position.z,1.0) && Math.abs(nx)<ARENA-1) obj.position.x=nx;
-  if(!blocked(obj.position.x,nz,1.0) && Math.abs(nz)<ARENA-1) obj.position.z=nz;
+  const eye = player.crouch?2.2:player.height;
+  let feet = obj.position.y - eye;
 
-  // gravity + jump
-  player.vel.y -= 26*dt;
+  // horizontal move + explosion knockback
+  const move = dir.multiplyScalar(speed*dt);
+  if(player.knock && player.knock.lengthSq()>0.01){ move.x+=player.knock.x*dt; move.z+=player.knock.z*dt; player.knock.multiplyScalar(Math.pow(0.015,dt)); }
+  const climbing = (fwd>0.1) && climbAt(obj.position.x, obj.position.z, feet);
+  const nx = obj.position.x+move.x, nz=obj.position.z+move.z;
+  if(Math.abs(nx)<ARENA-1 && (climbing || !wallBlocked(nx,obj.position.z,1.0,feet))) obj.position.x=nx;
+  if(Math.abs(nz)<ARENA-1 && (climbing || !wallBlocked(obj.position.x,nz,1.0,feet))) obj.position.z=nz;
+
+  // vertical: climb / gravity / land on the surface beneath you
+  if(climbing) player.vel.y = 6.0;
+  else player.vel.y -= 26*dt;
   obj.position.y += player.vel.y*dt;
-  const floor = player.crouch?2.2:player.height;
-  if(obj.position.y<=floor){ obj.position.y=floor; player.vel.y=0; player.onGround=true; }
+  feet = obj.position.y - eye;
+  const floorY = surfaceAt(obj.position.x, obj.position.z, feet) + eye;
+  if(obj.position.y <= floorY && player.vel.y<=0){ obj.position.y=floorY; player.vel.y=0; player.onGround=true; }
   else player.onGround=false;
 
-  player.vel.set(move.x/dt||0,player.vel.y,move.z/dt||0);
+  player.vel.set(move.x/dt||0, player.vel.y, move.z/dt||0);
   // auto-reload empty
   if(curWeapon().mag!==undefined){ const a=player.ammo[myLoadout[curSlot]]; if(a.mag<=0 && !player.reloading && a.res>0) reload(); }
   // finish reload
