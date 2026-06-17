@@ -137,6 +137,7 @@
   #bPause  { left:14px;   top:62px;     width:46px; height:46px; font-size:15px; background:rgba(20,26,40,.55); }
   #bFly    { left:14px;   top:116px;    width:46px; height:46px; font-size:12px; background:rgba(20,26,40,.55); }
   body.touch #bFly.on { background:rgba(74,163,255,.5); border-color:#4aa3ff; }
+  body:not(.sandbox) #bFly { display:none; }   /* fly button only in Sandbox */
   #mSlots  { position:absolute; left:14px; bottom:120px; display:flex; flex-direction:column; gap:8px; pointer-events:auto; }
   #mSlots .ms { width:52px; height:42px; font-size:11px; border-radius:8px; background:rgba(20,26,40,.55); border:2px solid rgba(255,255,255,.3); color:#fff; display:flex; align-items:center; justify-content:center; touch-action:none; }
   #mSlots .ms.sel { border-color:#ffd34d; background:rgba(255,211,77,.25); }
@@ -248,6 +249,8 @@
       <h2>LOADOUT</h2>
       <div class="sub">Equip one weapon per slot. Locked items can be unlocked with 🔑 keys in the Armory.</div>
       <div class="grid loadout" id="loadoutGrid"></div>
+      <h3 style="font-size:13px;color:#8a93a6;text-transform:uppercase;letter-spacing:1px;margin:18px 0 8px;">Game Style</h3>
+      <div class="diffRow" id="modeRow"></div>
       <h3 style="font-size:13px;color:#8a93a6;text-transform:uppercase;letter-spacing:1px;margin:18px 0 8px;">AI Difficulty</h3>
       <div class="diffRow" id="diffRow"></div>
       <div class="rowBtns">
@@ -277,7 +280,7 @@
         <b>WASD</b> — move &nbsp; <b>Mouse</b> — look &nbsp; <b>Left Click</b> — shoot<br/>
         <b>Shift</b> — sprint &nbsp; <b>Space</b> — jump &nbsp; <b>Ctrl</b> — crouch<br/>
         <b>R</b> — reload &nbsp; <b>1-4</b> — switch weapon slot &nbsp; <b>G</b> — grenade / heal &nbsp; <b>C</b> — crouch toggle<br/>
-        <b>F</b> — fly toggle (Space = up, Ctrl = down) &nbsp; · &nbsp; <b>Esc</b> — pause &nbsp; · &nbsp; hold <b>W</b> into a tower to climb<br/><br/>
+        <b>F</b> — fly (Sandbox only; Space up / Ctrl down) &nbsp; · &nbsp; <b>Esc</b> — pause &nbsp; · &nbsp; hold <b>W</b> to climb a tower<br/><br/>
         Earn 🔑 <b>keys</b> only by completing <b>Tasks</b> (reset every 3 days) in <b>Ranked</b> matches. <b>Practice Arena</b> lets you try every weapon, but doesn't count toward tasks.
       </div>
       <div class="rowBtns"><button class="btn small" id="helpBack">← BACK</button></div>
@@ -403,8 +406,8 @@ const MAPS = {
 const ROUND_TARGET = 5;       // first to 5 round wins
 const KILLS_PER_ROUND = 5;    // kills needed to win a round
 const ARENA = 60;             // half-extent of play area
-const MAX_HP = 3000;          // starting health for both player and bots
-const DMG_MULT = 10;          // every weapon does x10 damage (applied at the damage source)
+let MAX_HP = 150;             // starting health (Normal 150 / Sandbox 3000) — set in startMatch
+let DMG_MULT = 1;             // damage multiplier (Normal 1 / Sandbox 10) — set in startMatch
 
 // ============================================================
 //  PERSISTENCE (keys + unlocks)
@@ -437,6 +440,7 @@ let myLoadout = { primary:'assault', secondary:'handgun', melee:'knife', throwab
 let curSlot = 'primary';
 let match = null;
 let gameMode = 'ranked';   // 'ranked' (counts toward tasks) | 'practice' (all weapons, no progress)
+let sandbox = false;       // false = Normal (150 HP, x1 dmg) | true = Sandbox (3000 HP, x10 dmg, fly)
 const keysDown = {};
 let mouseFX=0, mouseFY=0, mouseInside=false, ads=false;
 const SENS=0.0022, BASE_FOV=75, FALLBACK_STEER=1300;
@@ -1141,6 +1145,8 @@ function onPlayerDeath(bot){
 function startMatch(){
   match = { youRounds:0, botRounds:0, round:1, youKills:0, botKills:0 };
   BOT = DIFFICULTIES[selectedDifficulty];
+  if(sandbox){ MAX_HP=3000; DMG_MULT=10; } else { MAX_HP=150; DMG_MULT=1; }   // game style
+  document.body.classList.toggle('sandbox', sandbox);
   goFullscreen();
   inMatch=true; running=true; paused=false; ads=false;
   camera.fov=BASE_FOV; camera.updateProjectionMatrix();
@@ -1257,7 +1263,7 @@ function tryJump(){
   if(player.onGround){ player.vel.y=10; player.onGround=false; player.jumps=1; }
   else if(curWeapon().doubleJump && (player.jumps||0)<2){ player.vel.y=10; player.jumps=2; }   // mid-air double jump
 }
-function toggleFly(){ if(!player||!player.alive) return; player.fly=!player.fly; player.vel.y=0; centerMsg(player.fly?'✈ FLY MODE ON':'FLY MODE OFF', 900); }
+function toggleFly(){ if(!player||!player.alive) return; if(!sandbox){ centerMsg('Fly is Sandbox-only', 800); return; } player.fly=!player.fly; player.vel.y=0; centerMsg(player.fly?'✈ FLY MODE ON':'FLY MODE OFF', 900); }
 function reload(){
   const id=myLoadout[curSlot]; const w=WEAPONS[id]; const a=player.ammo[id];
   if(player.reloading||w.mag===undefined||a.mag>=w.mag||a.res<=0) return;
@@ -1476,7 +1482,7 @@ function updateWeaponUI(){
 function updateAllUI(){ updateHealthUI(); updateWeaponUI(); refreshKeyUI();
   document.getElementById('youScore').textContent=match.youRounds;
   document.getElementById('botScore').textContent=match.botRounds;
-  document.getElementById('roundInfo').textContent=`ROUND ${match.round} · ${match.youKills}–${match.botKills} (to ${KILLS_PER_ROUND}) · ${selectedDifficulty.toUpperCase()} · ${gameMode==='ranked'?'RANKED':'PRACTICE'}`;
+  document.getElementById('roundInfo').textContent=`ROUND ${match.round} · ${match.youKills}–${match.botKills} (to ${KILLS_PER_ROUND}) · ${selectedDifficulty.toUpperCase()} · ${gameMode==='ranked'?'RANKED':'PRACTICE'} · ${sandbox?'SANDBOX':'NORMAL'}`;
 }
 function refreshKeyUI(){ for(const el of ['keyCount','menuKeys','shopKeys']) { const e=document.getElementById(el); if(e) e.textContent=save.keys; } }
 let hmTimer;
@@ -1514,6 +1520,21 @@ const DIFF_META = [
   { id:'hard',       name:'HARD',       color:'#ff9f43', desc:'Fast reflexes, sharp aim.' },
   { id:'impossible', name:'IMPOSSIBLE', color:'#ff4655', desc:'Aimbot. Good luck.' },
 ];
+// game style selector (Normal vs Sandbox)
+const MODE_META = [
+  { id:false, name:'NORMAL',  color:'#4aa3ff', desc:'150 HP · standard damage · no fly. Balanced.' },
+  { id:true,  name:'SANDBOX', color:'#ff9f43', desc:'3000 HP · x10 damage · fly (F). Mess around.' },
+];
+function buildMode(){
+  const r=document.getElementById('modeRow'); r.innerHTML='';
+  for(const m of MODE_META){
+    const b=document.createElement('div'); b.className='diffBtn'+(sandbox===m.id?' sel':'');
+    b.style.borderColor = sandbox===m.id ? m.color : '#2a3142';
+    b.innerHTML=`<div style="font-weight:bold;font-size:15px;color:${m.color}">${m.name}</div><div style="font-size:10px;color:#8a93a6;margin-top:3px;line-height:1.3;">${m.desc}</div>`;
+    b.onclick=()=>{ sandbox=m.id; buildMode(); };
+    r.appendChild(b);
+  }
+}
 function buildDiff(){
   const r=document.getElementById('diffRow'); r.innerHTML='';
   for(const d of DIFF_META){
@@ -1657,7 +1678,7 @@ document.getElementById('btnHelp').onclick=()=>goto('help');
 document.getElementById('helpBack').onclick=()=>goto('menu');
 document.getElementById('shopBack').onclick=()=>goto('menu');
 document.getElementById('mapBack').onclick=()=>goto('menu');
-document.getElementById('mapNext').onclick=()=>{ buildLoadout(); buildDiff(); goto('loadout'); };
+document.getElementById('mapNext').onclick=()=>{ buildLoadout(); buildMode(); buildDiff(); goto('loadout'); };
 document.getElementById('loadBack').onclick=()=>{ buildMapCards(); goto('mapSelect'); };
 document.getElementById('loadFight').onclick=()=>{ startMatch(); };
 document.getElementById('resumeBtn').onclick=()=>{ resumeGame(); };
