@@ -135,6 +135,8 @@
   #bNade   { right:118px; bottom:236px; width:56px; height:56px; font-size:11px; }
   #bCrouch { right:30px;  bottom:228px; width:56px; height:56px; font-size:11px; }
   #bPause  { left:14px;   top:62px;     width:46px; height:46px; font-size:15px; background:rgba(20,26,40,.55); }
+  #bFly    { left:14px;   top:116px;    width:46px; height:46px; font-size:12px; background:rgba(20,26,40,.55); }
+  body.touch #bFly.on { background:rgba(74,163,255,.5); border-color:#4aa3ff; }
   #mSlots  { position:absolute; left:14px; bottom:120px; display:flex; flex-direction:column; gap:8px; pointer-events:auto; }
   #mSlots .ms { width:52px; height:42px; font-size:11px; border-radius:8px; background:rgba(20,26,40,.55); border:2px solid rgba(255,255,255,.3); color:#fff; display:flex; align-items:center; justify-content:center; touch-action:none; }
   #mSlots .ms.sel { border-color:#ffd34d; background:rgba(255,211,77,.25); }
@@ -209,6 +211,7 @@
       <div class="mbtn" id="bReload">RELOAD</div>
       <div class="mbtn" id="bNade">NADE</div>
       <div class="mbtn" id="bCrouch">CRCH</div>
+      <div class="mbtn" id="bFly">FLY</div>
       <div class="mbtn" id="bPause">❚❚</div>
     </div>
   </div>
@@ -273,8 +276,8 @@
       <div style="line-height:2;font-size:15px;">
         <b>WASD</b> — move &nbsp; <b>Mouse</b> — look &nbsp; <b>Left Click</b> — shoot<br/>
         <b>Shift</b> — sprint &nbsp; <b>Space</b> — jump &nbsp; <b>Ctrl</b> — crouch<br/>
-        <b>R</b> — reload &nbsp; <b>1-4</b> — switch weapon slot &nbsp; <b>G</b> — grenade / heal<br/>
-        <b>Esc</b> — pause &nbsp; · &nbsp; hold <b>W</b> into a climb tower to climb up<br/><br/>
+        <b>R</b> — reload &nbsp; <b>1-4</b> — switch weapon slot &nbsp; <b>G</b> — grenade / heal &nbsp; <b>C</b> — crouch toggle<br/>
+        <b>F</b> — fly toggle (Space = up, Ctrl = down) &nbsp; · &nbsp; <b>Esc</b> — pause &nbsp; · &nbsp; hold <b>W</b> into a tower to climb<br/><br/>
         Earn 🔑 <b>keys</b> only by completing <b>Tasks</b> (reset every 3 days) in <b>Ranked</b> matches. <b>Practice Arena</b> lets you try every weapon, but doesn't count toward tasks.
       </div>
       <div class="rowBtns"><button class="btn small" id="helpBack">← BACK</button></div>
@@ -400,7 +403,8 @@ const MAPS = {
 const ROUND_TARGET = 5;       // first to 5 round wins
 const KILLS_PER_ROUND = 5;    // kills needed to win a round
 const ARENA = 60;             // half-extent of play area
-const MAX_HP = 150;           // starting health for both player and bots
+const MAX_HP = 3000;          // starting health for both player and bots
+const DMG_MULT = 10;          // every weapon does x10 damage (applied at the damage source)
 
 // ============================================================
 //  PERSISTENCE (keys + unlocks)
@@ -670,7 +674,7 @@ function initAmmo(){
   }
 }
 function spawnPlayer(){
-  player = { hp:MAX_HP, vel:new THREE.Vector3(), knock:new THREE.Vector3(), onGround:true, height:3.2, crouch:false, alive:true,
+  player = { hp:MAX_HP, vel:new THREE.Vector3(), knock:new THREE.Vector3(), onGround:true, height:3.2, crouch:false, fly:false, alive:true,
              ammo:{}, lastShot:0, reloading:false, reloadEnd:0, kills:0, deaths:0 };
   initAmmo();
   const p = startPos(true);
@@ -1084,7 +1088,7 @@ function updateProjectiles(dt){
 //  DAMAGE / DEATH
 // ============================================================
 function damageBot(bot,dmg){
-  bot.hp-=dmg;
+  bot.hp-=dmg*DMG_MULT;
   flashMesh(bot.body);
   if(bot.hp<=0){ bot.alive=false; bot.grp.visible=false; onPlayerKill(bot); }
 }
@@ -1111,7 +1115,7 @@ function damagePlayer(dmg, bot, dtype){
   if(!player.alive) return;
   // Riot Shield (while equipped) blocks ALL damage except fire & explosives
   if(curWeapon().shield && dtype!=='fire' && dtype!=='explosive'){ return; }
-  player.hp-=dmg; if(player.hp<0)player.hp=0;
+  player.hp-=dmg*DMG_MULT; if(player.hp<0)player.hp=0;
   updateHealthUI(); damageFlash();
   if(player.hp<=0){ player.alive=false; onPlayerDeath(bot); }
 }
@@ -1213,14 +1217,24 @@ function updatePlayer(dt){
   if(Math.abs(nx)<ARENA-1 && (climbing || !wallBlocked(nx,obj.position.z,1.0,feet))) obj.position.x=nx;
   if(Math.abs(nz)<ARENA-1 && (climbing || !wallBlocked(obj.position.x,nz,1.0,feet))) obj.position.z=nz;
 
-  // vertical: climb / gravity / land on the surface beneath you
-  if(climbing) player.vel.y = 6.0;
-  else player.vel.y -= 26*dt;
-  obj.position.y += player.vel.y*dt;
-  feet = obj.position.y - eye;
-  const floorY = surfaceAt(obj.position.x, obj.position.z, feet) + eye;
-  if(obj.position.y <= floorY && player.vel.y<=0){ obj.position.y=floorY; player.vel.y=0; player.onGround=true; player.jumps=0; }
-  else player.onGround=false;
+  // vertical: fly / climb / gravity / land
+  if(player.fly){
+    let vy=0;
+    if(keysDown['Space']||player._mUp) vy+=16;
+    if(keysDown['ControlLeft']||player._mDown) vy-=16;
+    player.vel.y=vy; obj.position.y += vy*dt;
+    const fl=surfaceAt(obj.position.x, obj.position.z, obj.position.y-eye)+eye;
+    if(obj.position.y<fl) obj.position.y=fl;   // don't sink through the ground
+    player.onGround=false;
+  } else {
+    if(climbing) player.vel.y = 6.0;
+    else player.vel.y -= 26*dt;
+    obj.position.y += player.vel.y*dt;
+    feet = obj.position.y - eye;
+    const floorY = surfaceAt(obj.position.x, obj.position.z, feet) + eye;
+    if(obj.position.y <= floorY && player.vel.y<=0){ obj.position.y=floorY; player.vel.y=0; player.onGround=true; player.jumps=0; }
+    else player.onGround=false;
+  }
 
   // auto-unstick: if actively trying to move but pinned in place for a while, hop out
   const wantMove = (Math.abs(fwd)+Math.abs(str))>0.1 || (player.knock&&player.knock.lengthSq()>0.1);
@@ -1239,10 +1253,11 @@ function updatePlayer(dt){
 }
 
 function tryJump(){
-  if(!player||!player.alive||!running||paused) return;
+  if(!player||!player.alive||!running||paused||player.fly) return;
   if(player.onGround){ player.vel.y=10; player.onGround=false; player.jumps=1; }
   else if(curWeapon().doubleJump && (player.jumps||0)<2){ player.vel.y=10; player.jumps=2; }   // mid-air double jump
 }
+function toggleFly(){ if(!player||!player.alive) return; player.fly=!player.fly; player.vel.y=0; centerMsg(player.fly?'✈ FLY MODE ON':'FLY MODE OFF', 900); }
 function reload(){
   const id=myLoadout[curSlot]; const w=WEAPONS[id]; const a=player.ammo[id];
   if(player.reloading||w.mag===undefined||a.mag>=w.mag||a.res<=0) return;
@@ -1617,9 +1632,10 @@ addEventListener('keydown',e=>{
   if(e.code==='Digit4') switchSlot('throwable');
   if(e.code==='KeyG') throwGrenade();
   if(e.code==='Space') tryJump();
-  if(e.code==='ControlLeft') player.crouch=true;
+  if(e.code==='KeyF') toggleFly();                       // F: toggle fly mode
+  if(e.code==='KeyC' && player) player.crouch=!player.crouch;   // C: toggle crouch
 });
-addEventListener('keyup',e=>{ keysDown[e.code]=false; if(e.code==='ControlLeft') player.crouch=false; });
+addEventListener('keyup',e=>{ keysDown[e.code]=false; });
 addEventListener('mousedown',e=>{
   if(!running||paused) return;
   if(e.button===0){ mouseDown=true; if(!controls.isLocked) controls.lock(); if(curWeapon().type!=='auto') tryShoot(); }
@@ -1707,10 +1723,11 @@ function initTouch(){
     el.addEventListener('touchend',  e=>{ e.preventDefault(); e.stopPropagation(); if(up)up(); },{passive:false});
   };
   press('bFire', ()=>{ if(!running||paused||!player.alive) return; mouseDown=true; const cw=curWeapon(); if(!(cw.type==='auto'||cw.autoFire)) tryShoot(); }, ()=>{ mouseDown=false; });
-  press('bJump', ()=>tryJump());
+  press('bJump', ()=>{ if(player&&player.fly){ player._mUp=true; } else tryJump(); }, ()=>{ if(player) player._mUp=false; });
   press('bReload', ()=>{ if(running&&!paused) reload(); });
   press('bNade', ()=>{ throwGrenade(); });
-  press('bCrouch', ()=>{ if(player) player.crouch=!player.crouch; });
+  press('bCrouch', ()=>{ if(player&&player.fly){ player._mDown=true; } else if(player) player.crouch=!player.crouch; }, ()=>{ if(player) player._mDown=false; });
+  press('bFly', ()=>{ toggleFly(); const b=document.getElementById('bFly'); if(b) b.classList.toggle('on', !!(player&&player.fly)); });
   press('bPause', ()=>{ if(paused) resumeGame(); else pauseGame(); });
   document.getElementById('bAds').addEventListener('touchstart',e=>{ e.preventDefault(); e.stopPropagation();
     const t=curWeapon().type; if(t==='melee'||t==='grenade') return; ads=!ads; document.getElementById('bAds').classList.toggle('on',ads); },{passive:false});
