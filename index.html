@@ -336,7 +336,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 const WEAPONS = {
   // ================= PRIMARY =================  (Assault Rifle = 10 dmg baseline; everything scaled to it)
   assault:        { name:'Assault Rifle',  slot:'primary', type:'auto',  dmg:10, crit:1.5, rpm:600, mag:30, reserve:120, reload:2.2, spread:0.030, aimSpread:0.010, range:130, speed:1.0, free:true },
-  energyrifle:    { name:'Energy Rifle',   slot:'primary', type:'projectile', autoFire:true, infinite:true, bounces:3, beam:true, dmg:20, crit:1.5, rpm:480, mag:24, reserve:0, reload:2.0, spread:0.022, aimSpread:0.006, range:140, speed:0.98, projSpeed:110, projGrav:0, projColor:0x66e0ff, cost:90 },
+  energyrifle:    { name:'Energy Rifle',   slot:'primary', type:'auto', autoFire:true, infinite:true, beamFx:true, dmg:20, crit:1.5, rpm:150, mag:24, reserve:0, reload:2.0, spread:0.008, aimSpread:0.002, range:220, speed:0.98, projColor:0x66e0ff, cost:90 },
   burstrifle:     { name:'Burst Rifle',    slot:'primary', type:'burst',  dmg:12, crit:2,   rpm:260, burst:3, mag:27, reserve:108, reload:2.1, spread:0.020, aimSpread:0.004, range:130, speed:1.0, cost:80 },
   minigun:        { name:'Minigun',        slot:'primary', type:'auto',  dmg:6,  crit:1.25, rpm:1100, mag:100, reserve:200, reload:4.0, spread:0.055, aimSpread:0.03, range:90, speed:0.7, cost:400 },
   paintball:      { name:'Paintball Gun',  slot:'primary', type:'auto',  dmg:8,  crit:1.5, rpm:700, mag:40, reserve:160, reload:2.0, spread:0.038, aimSpread:0.014, range:80, speed:1.05, cost:400 },
@@ -353,7 +353,7 @@ const WEAPONS = {
   // ================= SECONDARY =================
   handgun:        { name:'Handgun',        slot:'secondary', type:'semi', dmg:13, crit:2, rpm:360, mag:12, reserve:60, reload:1.4, spread:0.012, aimSpread:0.004, range:80, speed:1.10, free:true },
   warper:         { name:'Warper',         slot:'secondary', type:'projectile', dmg:10, crit:2, rpm:200, mag:6, reserve:30, reload:1.6, spread:0.010, range:100, speed:1.15, projSpeed:90, projColor:0x66e0ff, cost:70 },
-  energypistols:  { name:'Energy Pistols', slot:'secondary', type:'auto', dmg:7, crit:1.5, rpm:640, mag:28, reserve:112, reload:1.6, spread:0.030, aimSpread:0.012, range:70, speed:1.12, projColor:0x66e0ff, cost:400 },
+  energypistols:  { name:'Energy Pistols', slot:'secondary', type:'auto', infinite:true, dmg:7, crit:1.5, rpm:640, mag:28, reserve:0, reload:1.6, spread:0.030, aimSpread:0.012, range:70, speed:1.12, projColor:0x66e0ff, cost:400 },
   exogun:         { name:'Exogun',         slot:'secondary', type:'shotgun', dmg:4, crit:1.5, rpm:150, mag:6, reserve:30, reload:1.9, spread:0.085, range:30, pellets:6, speed:1.08, cost:400 },
   slingshot:      { name:'Slingshot',      slot:'secondary', type:'projectile', dmg:17, crit:2, rpm:150, mag:99, reserve:0, reload:1.5, spread:0.006, range:120, speed:1.12, projSpeed:85, projGrav:10, bounces:3, projColor:0x9aa, cost:400 },
   daggers:        { name:'Daggers',        slot:'secondary', type:'projectile', doubleJump:true, dmg:20, crit:2, rpm:240, mag:4, reserve:24, reload:1.4, spread:0.010, range:65, speed:1.18, projSpeed:75, projColor:0xcfd6e0, cost:70 },
@@ -366,9 +366,9 @@ const WEAPONS = {
 
   // ================= MELEE =================
   fists:          { name:'Fists',          slot:'melee', type:'melee', doubleJump:true, dmg:14, crit:2,   rpm:240, range:2.6, speed:1.20, free:true },
-  knife:          { name:'Knife',          slot:'melee', type:'melee', dmg:25, crit:2,   rpm:160, range:3.0, speed:1.18, free:true },
+  knife:          { name:'Knife',          slot:'melee', type:'melee', backstab:150, dmg:25, crit:2,   rpm:160, range:3.0, speed:1.18, free:true },
   trowel:         { name:'Trowel',         slot:'melee', type:'melee', dmg:29, crit:1.5, rpm:150, range:2.8, speed:1.10, cost:20 },
-  riotshield:     { name:'Riot Shield',    slot:'melee', type:'melee', dmg:21, crit:1.5, rpm:100, range:3.0, speed:0.80, cost:80 },
+  riotshield:     { name:'Riot Shield',    slot:'melee', type:'melee', shield:true, dmg:21, crit:1.5, rpm:100, range:3.0, speed:0.65, cost:80 },
   chainsaw:       { name:'Chainsaw',       slot:'melee', type:'melee', dmg:18, crit:1.5, rpm:360, range:3.2, speed:0.95, cost:120 },
   spear:          { name:'Spear',          slot:'melee', type:'melee', dmg:43, crit:2,   rpm:110, range:5.0, speed:1.05, cost:90 },
   katana:         { name:'Katana',         slot:'melee', type:'melee', dmg:41, crit:1.5, rpm:130, range:3.8, speed:1.14, cost:160 },
@@ -921,7 +921,17 @@ function fireRay(w){
   } else {
     end = origin.clone().add(dir.clone().multiplyScalar(w.range));
   }
-  tracer(origin.clone().add(dir.clone().multiplyScalar(1.5)), end);
+  if(w.beamFx) beamShot(origin.clone().add(dir.clone().multiplyScalar(1.0)), end, w.projColor);
+  else tracer(origin.clone().add(dir.clone().multiplyScalar(1.5)), end);
+}
+// a thick glowing beam from a to b (used by the Energy Rifle's single long beam)
+function beamShot(a,b,color){
+  const len=Math.max(0.2, a.distanceTo(b));
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.13,len,8),
+    new THREE.MeshBasicMaterial({color:color||0x66e0ff, transparent:true, opacity:0.85, blending:THREE.AdditiveBlending, depthWrite:false}));
+  m.position.copy(a).lerp(b,0.5);
+  m.quaternion.setFromUnitVectors(BEAM_UP, new THREE.Vector3().subVectors(b,a).normalize());
+  scene.add(m); tracers.push({l:m,t:0});
 }
 
 function meleeAttack(w){
@@ -931,9 +941,25 @@ function meleeAttack(w){
   swingViewmodel();
   const pp=controls.getObject().position;
   const dir=new THREE.Vector3(); camera.getWorldDirection(dir);
+  // for backstab weapons (knife): raycast to detect a head hit
+  let headBot=null;
+  if(w.backstab){
+    const origin=camera.getWorldPosition(new THREE.Vector3());
+    _ray.set(origin,dir); _ray.far=w.range+1;
+    for(const bot of bots){ if(bot.alive && _ray.intersectObject(bot.head,false).length){ headBot=bot; break; } }
+  }
   for(const bot of bots){ if(!bot.alive) continue;
     const to=new THREE.Vector3().subVectors(bot.grp.position,pp); to.y=0;
-    if(to.length()<w.range && dir.dot(to.normalize())>0.4){ damageBot(bot,w.dmg); showHitmarker(false); }
+    if(to.length()<w.range && dir.dot(to.clone().normalize())>0.4){
+      let dmg=w.dmg, special=false;
+      if(w.backstab){
+        const botFwd=new THREE.Vector3(0,0,-1).applyQuaternion(bot.grp.quaternion); botFwd.y=0; botFwd.normalize();
+        const toPlayer=new THREE.Vector3().subVectors(pp,bot.grp.position); toPlayer.y=0; toPlayer.normalize();
+        const fromBehind = botFwd.dot(toPlayer) < -0.2;            // player is behind the bot
+        if(bot===headBot || fromBehind){ dmg=w.backstab; special=true; }   // 150 on head / back
+      }
+      damageBot(bot,dmg); showHitmarker(special);
+    }
   }
 }
 
@@ -987,7 +1013,7 @@ function explode(pos,w,exclude){
   const ppos=controls.getObject().position;
   const pd=ppos.distanceTo(pos); if(pd<w.radius){
     const f=1-pd/w.radius;
-    if(!w.noSelfDmg) damagePlayer(w.dmg*f*0.6, null);   // RPG / GL don't hurt you (still launch you)
+    if(!w.noSelfDmg) damagePlayer(w.dmg*f*0.6, null, w.fire?'fire':'explosive');   // RPG / GL don't hurt you (still launch you)
     if(kb) applyKnockback(new THREE.Vector3().subVectors(ppos,pos), kb*f);
   }
 }
@@ -1080,8 +1106,10 @@ function resetSkirmish(){
   }
 }
 
-function damagePlayer(dmg, bot){
+function damagePlayer(dmg, bot, dtype){
   if(!player.alive) return;
+  // Riot Shield (while equipped) blocks ALL damage except fire & explosives
+  if(curWeapon().shield && dtype!=='fire' && dtype!=='explosive'){ return; }
   player.hp-=dmg; if(player.hp<0)player.hp=0;
   updateHealthUI(); damageFlash();
   if(player.hp<=0){ player.alive=false; onPlayerDeath(bot); }
@@ -1274,9 +1302,21 @@ function rebuildViewmodel(){
   if(viewmodel){ camera.remove(viewmodel); viewmodel=null; }
   const w=curWeapon(); const grp=new THREE.Group();
   if(w.type==='melee'){
-    const blade=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.08,1.0), mat(0xcfd6e0)); blade.position.set(0.3,-0.25,-0.9);
-    const hilt=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.12,0.3), mat(0x33270f)); hilt.position.set(0.3,-0.28,-0.35);
-    grp.add(blade,hilt);
+    if(w.shield){
+      // big black riot shield filling the view, with a small tinted-glass eye-slit you can still see through
+      const black=new THREE.MeshBasicMaterial({color:0x070707});
+      const mk=(pw,ph,px,py)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(pw,ph), black); m.position.set(px,py,-1.0); grp.add(m); };
+      mk(2.8,1.05, 0, 0.78);    // top panel
+      mk(2.8,1.35, 0, -0.98);   // bottom panel
+      mk(1.0,0.6, -1.05, 0);    // left of slit
+      mk(1.0,0.6, 1.05, 0);     // right of slit
+      const glass=new THREE.Mesh(new THREE.PlaneGeometry(1.05,0.45), new THREE.MeshBasicMaterial({color:0x2a3a4a, transparent:true, opacity:0.22, depthWrite:false}));
+      glass.position.set(0,0,-1.02); grp.add(glass);
+    } else {
+      const blade=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.08,1.0), mat(0xcfd6e0)); blade.position.set(0.3,-0.25,-0.9);
+      const hilt=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.12,0.3), mat(0x33270f)); hilt.position.set(0.3,-0.28,-0.35);
+      grp.add(blade,hilt);
+    }
   } else if(w.type==='grenade'){
     const b=new THREE.Mesh(new THREE.SphereGeometry(0.16,10,10), mat(w.fire?0xff6a2a:0x3a4150)); b.position.set(0.35,-0.3,-0.6); grp.add(b);
   } else {
@@ -1289,7 +1329,7 @@ function rebuildViewmodel(){
   viewmodel=grp; camera.add(grp);
   if(!camera.parent) scene.add(camera);
 }
-function recoil(w){ vmRecoil=Math.min(vmRecoil+0.04,0.18); if(!w.beam) muzzleFlash(null); }
+function recoil(w){ vmRecoil=Math.min(vmRecoil+0.04,0.18); if(!w.beam && !w.beamFx) muzzleFlash(null); }
 function swingViewmodel(){ vmSwing=1; }
 function updateViewmodel(dt){
   if(!viewmodel) return;
@@ -1336,7 +1376,7 @@ function tracer(a,b){
   const l=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xfff1b0, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending, depthWrite:false}));
   scene.add(l); tracers.push({l,t:0});
 }
-function updateTracers(dt){ for(let i=tracers.length-1;i>=0;i--){ const tr=tracers[i]; tr.t+=dt; tr.l.material.opacity=0.9-tr.t*6; if(tr.t>0.15){ scene.remove(tr.l); tracers.splice(i,1);} } }
+function updateTracers(dt){ for(let i=tracers.length-1;i>=0;i--){ const tr=tracers[i]; tr.t+=dt; tr.l.material.opacity=0.9-tr.t*6; if(tr.t>0.15){ scene.remove(tr.l); tr.l.geometry.dispose(); tr.l.material.dispose(); tracers.splice(i,1);} } }
 function flashMesh(m){ const c=m.material.color.clone(); m.material=m.material.clone(); m.material.color.set(0xffffff); setTimeout(()=>m.material.color.copy(c),60); }
 
 // ============================================================
