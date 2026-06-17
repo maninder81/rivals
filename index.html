@@ -347,7 +347,7 @@ const WEAPONS = {
   rpg:            { name:'RPG',            slot:'primary', type:'projectile', dmg:50, directDmg:100, radius:7, knockback:70, noSelfDmg:true, rpm:40, mag:1, reserve:6, reload:3.0, spread:0.005, range:250, speed:0.8, projSpeed:55, projGrav:5, projColor:0x444a55, cost:150 },
   grenadelauncher:{ name:'Grenade Launcher',slot:'primary', type:'projectile', dmg:41, radius:6, knockback:45, noSelfDmg:true, rpm:70, mag:4, reserve:16, reload:2.6, spread:0.012, range:140, speed:0.92, projSpeed:42, projGrav:16, projColor:0x3a4150, cost:400 },
   shotgun:        { name:'Shotgun',        slot:'primary', type:'shotgun', dmg:6, crit:1.5, rpm:80, mag:7, reserve:35, reload:2.6, spread:0.09, range:38, pellets:9, speed:0.95, cost:50 },
-  sniper:         { name:'Sniper',         slot:'primary', type:'sniper', dmg:36, crit:3, rpm:40, mag:4, reserve:12, reload:1.43, spread:0.26, aimSpread:0, range:300, speed:0.8, scope:true, scopeZoom:6, cost:75 },
+  sniper:         { name:'Sniper',         slot:'primary', type:'sniper', autoTrigger:true, dmg:50, crit:3, rpm:40, mag:4, reserve:12, reload:1.43, spread:0.26, aimSpread:0, range:300, speed:0.8, scope:true, scopeZoom:6, cost:75 },
   scepter:        { name:'Scepter',        slot:'primary', type:'projectile', dmg:27, radius:4, knockback:25, crit:1.5, rpm:120, mag:10, reserve:40, reload:2.2, spread:0.010, range:130, speed:1.0, projSpeed:75, projColor:0xb060ff, cost:110 },
 
   // ================= SECONDARY =================
@@ -1292,6 +1292,20 @@ function loop(){
     updateLaser(dt);
     // auto-fire for auto / auto-projectile weapons
     if(mouseDown){ const cw=curWeapon(); if(cw.type==='auto' || cw.autoFire) tryShoot(); }
+    // auto-trigger weapons (Sniper): fire when the crosshair is over an enemy with a clear line
+    { const cw=curWeapon();
+      if(cw.autoTrigger && player && player.alive){
+        const o=camera.getWorldPosition(new THREE.Vector3()); const d=new THREE.Vector3(); camera.getWorldDirection(d);
+        _ray.set(o,d); _ray.far=cw.range;
+        let bd=Infinity, onBot=false;
+        for(const bot of bots){ if(!bot.alive) continue;
+          const hb=_ray.intersectObject(bot.body,false), hh=_ray.intersectObject(bot.head,false);
+          const dd=Math.min(hb.length?hb[0].distance:Infinity, hh.length?hh[0].distance:Infinity);
+          if(dd<bd){ bd=dd; onBot=true; } }
+        if(onBot){ const wh=_ray.intersectObjects(world.obstacles,false); if(wh.length && wh[0].distance<bd) onBot=false; }
+        if(onBot) tryShoot();
+      }
+    }
   }
   renderer.render(scene,camera);
 }
