@@ -336,7 +336,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 const WEAPONS = {
   // ================= PRIMARY =================  (Assault Rifle = 10 dmg baseline; everything scaled to it)
   assault:        { name:'Assault Rifle',  slot:'primary', type:'auto',  dmg:10, crit:1.5, rpm:600, mag:30, reserve:120, reload:2.2, spread:0.030, aimSpread:0.010, range:130, speed:1.0, free:true },
-  energyrifle:    { name:'Energy Rifle',   slot:'primary', type:'auto', autoFire:true, infinite:true, beamFx:true, dmg:20, crit:1.5, rpm:150, mag:24, reserve:0, reload:2.0, spread:0.008, aimSpread:0.002, range:220, speed:0.98, projColor:0x66e0ff, cost:90 },
+  energyrifle:    { name:'Energy Rifle',   slot:'primary', type:'laser', infinite:true, dps:75, crit:1.5, mag:1, reserve:0, reload:1, spread:0, range:220, speed:0.98, projColor:0x66e0ff, cost:90 },
   burstrifle:     { name:'Burst Rifle',    slot:'primary', type:'burst',  dmg:12, crit:2,   rpm:260, burst:3, mag:27, reserve:108, reload:2.1, spread:0.020, aimSpread:0.004, range:130, speed:1.0, cost:80 },
   minigun:        { name:'Minigun',        slot:'primary', type:'auto',  dmg:6,  crit:1.25, rpm:1100, mag:100, reserve:200, reload:4.0, spread:0.055, aimSpread:0.03, range:90, speed:0.7, cost:400 },
   paintball:      { name:'Paintball Gun',  slot:'primary', type:'auto',  dmg:8,  crit:1.5, rpm:700, mag:40, reserve:160, reload:2.0, spread:0.038, aimSpread:0.014, range:80, speed:1.05, cost:400 },
@@ -453,7 +453,7 @@ function goFullscreen(){
   const fn=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
   if(fn && !document.fullscreenElement){ try{ fn.call(el); }catch(e){} }
 }
-function pauseGame(){ if(!inMatch||paused) return; paused=true; document.body.classList.add('paused'); show('pause',true); controls.unlock(); }
+function pauseGame(){ if(!inMatch||paused) return; paused=true; document.body.classList.add('paused'); show('pause',true); controls.unlock(); if(_laser) _laser.visible=false; }
 function resumeGame(){ paused=false; document.body.classList.remove('paused'); show('pause',false); if(!IS_TOUCH) controls.lock(); }
 
 // ============================================================
@@ -862,7 +862,8 @@ function tryShoot(){
   if(!running||paused||!player.alive) return;
   const w = curWeapon();
   if(w.type==='melee'){ meleeAttack(w); return; }
-  if(w.type==='grenade'){ return; } // grenades use G
+  if(w.type==='grenade'){ return; }
+  if(w.type==='laser'){ return; }   // continuous laser handled in updateLaser // grenades use G
   if(player.reloading) return;
   const id = myLoadout[curSlot];
   const a = player.ammo[id];
@@ -1288,6 +1289,7 @@ function loop(){
     updateProjectiles(dt);
     updateTracers(dt);
     updateMuzzle(dt);
+    updateLaser(dt);
     // auto-fire for auto / auto-projectile weapons
     if(mouseDown){ const cw=curWeapon(); if(cw.type==='auto' || cw.autoFire) tryShoot(); }
   }
@@ -1344,11 +1346,13 @@ function updateViewmodel(dt){
 }
 
 // pooled muzzle flash — ONE reusable light + sprite (creating lights per-shot recompiles shaders => lag)
-let _mzLight=null, _mzSprite=null, _mzT=0;
+let _mzLight=null, _mzSprite=null, _mzT=0, _laser=null, _laserTick=0;
 function setupMuzzle(){
   _mzLight=new THREE.PointLight(0xffd27f, 0, 16, 2); scene.add(_mzLight);
   _mzSprite=new THREE.Mesh(new THREE.SphereGeometry(0.16,8,8), new THREE.MeshBasicMaterial({color:0xffe7a0, transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false}));
   _mzSprite.visible=false; scene.add(_mzSprite); _mzT=0;
+  _laser=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,1,8), new THREE.MeshBasicMaterial({color:0x66e0ff, transparent:true, opacity:0.85, blending:THREE.AdditiveBlending, depthWrite:false}));
+  _laser.visible=false; scene.add(_laser); _laserTick=0;
 }
 function muzzleFlash(fromPos, toPos){
   if(!_mzLight) return;
@@ -1365,6 +1369,32 @@ function updateMuzzle(dt){
     if(_mzT<=0){ _mzLight.intensity=0; _mzSprite.visible=false; }
     else { const k=Math.pow(0.0005,dt); _mzLight.intensity*=k; _mzSprite.material.opacity*=k; }
   }
+}
+// continuous single-ray laser (Energy Rifle): one solid beam while held, damage over time
+function updateLaser(dt){
+  if(!_laser) return;
+  const w=curWeapon();
+  if(!(mouseDown && running && !paused && player.alive && w.type==='laser')){ _laser.visible=false; _laserTick=0; return; }
+  const origin=camera.getWorldPosition(new THREE.Vector3());
+  const dir=new THREE.Vector3(); camera.getWorldDirection(dir);
+  _ray.set(origin,dir); _ray.far=w.range||200;
+  let end=origin.clone().add(dir.clone().multiplyScalar(w.range||200)), hitBot=null, hitDist=Infinity, headshot=false;
+  for(const bot of bots){ if(!bot.alive) continue;
+    const hh=_ray.intersectObject(bot.head,false), bh=_ray.intersectObject(bot.body,false);
+    if(hh.length && hh[0].distance<hitDist){ hitDist=hh[0].distance; hitBot=bot; headshot=true; }
+    if(bh.length && bh[0].distance<hitDist){ hitDist=bh[0].distance; hitBot=bot; headshot=false; }
+  }
+  const wallHits=_ray.intersectObjects(world.obstacles,false), wallDist=wallHits.length?wallHits[0].distance:Infinity;
+  if(hitBot && hitDist<wallDist){
+    end=origin.clone().add(dir.clone().multiplyScalar(hitDist));
+    _laserTick+=dt;
+    if(_laserTick>=0.08){ damageBot(hitBot, (w.dps||70)*_laserTick*(headshot?(w.crit||1.5):1)); showHitmarker(headshot); _laserTick=0; }
+  } else { _laserTick=0; if(wallHits.length) end=wallHits[0].point.clone(); }
+  const muzzle=origin.clone().add(dir.clone().multiplyScalar(1.0));
+  const len=Math.max(0.2, muzzle.distanceTo(end));
+  _laser.scale.set(1,len,1); _laser.position.copy(muzzle).lerp(end,0.5);
+  _laser.quaternion.setFromUnitVectors(BEAM_UP, new THREE.Vector3().subVectors(end,muzzle).normalize());
+  _laser.visible=true;
 }
 function impact(point){
   const s=new THREE.Mesh(new THREE.SphereGeometry(0.12,8,8), new THREE.MeshBasicMaterial({color:0xffd27f, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending, depthWrite:false}));
