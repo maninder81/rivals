@@ -435,8 +435,6 @@ function loadSave(){
   if(!s || typeof s!=='object') s={ keys:0, unlocked:{} };
   if(!s.unlocked) s.unlocked={};
   for(const k in WEAPONS){ if(WEAPONS[k].free) s.unlocked[k]=true; }   // always grant free starters
-  if(!s.granted100k){ s.keys=(s.keys||0)+100000; s.granted100k=true;   // one-time 100k grant to try weapons
-    try{ localStorage.setItem(SAVE_KEY, JSON.stringify(s)); }catch(e){} }
   return s;
 }
 function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
@@ -1558,8 +1556,13 @@ function buildMode(){
 function submitUsername(){
   const v=(document.getElementById('unameInput').value||'').trim();
   if(!v){ document.getElementById('unameMsg').textContent='Please enter a username.'; return; }
-  sandboxUnlocked = (v.toLowerCase()==='gurneet');
-  save.username=v; persist();
+  const isGurneet = v.toLowerCase()==='gurneet';
+  sandboxUnlocked = isGurneet;
+  if(isGurneet){
+    save.keys = 10000;                                   // GURNEET gets 10,000 keys
+    for(const k in WEAPONS) save.unlocked[k]=true;       // ...and every weapon unlocked
+  }
+  save.username=v; persist(); refreshKeyUI();
   goto('menu');
 }
 function buildDiff(){
