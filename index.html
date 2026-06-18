@@ -1402,7 +1402,7 @@ function setupMuzzle(){
   _mzLight=new THREE.PointLight(0xffd27f, 0, 16, 2); scene.add(_mzLight);
   _mzSprite=new THREE.Mesh(new THREE.SphereGeometry(0.16,8,8), new THREE.MeshBasicMaterial({color:0xffe7a0, transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false}));
   _mzSprite.visible=false; scene.add(_mzSprite); _mzT=0;
-  _laser=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,1,8), new THREE.MeshBasicMaterial({color:0x66e0ff, transparent:true, opacity:0.85, blending:THREE.AdditiveBlending, depthWrite:false}));
+  _laser=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,1,8), new THREE.MeshBasicMaterial({color:0x66e0ff, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false}));
   _laser.visible=false; scene.add(_laser); _laserTick=0;
 }
 function muzzleFlash(fromPos, toPos){
@@ -1441,7 +1441,9 @@ function updateLaser(dt){
     _laserTick+=dt;
     if(_laserTick>=0.08){ damageBot(hitBot, (w.dps||70)*_laserTick*(headshot?(w.crit||1.5):1)); showHitmarker(headshot); _laserTick=0; }
   } else { _laserTick=0; if(wallHits.length) end=wallHits[0].point.clone(); }
-  const muzzle=origin.clone().add(dir.clone().multiplyScalar(1.0));
+  // start the beam from the gun barrel (offset down-right) so it always reads as a beam, not an end-on circle
+  const right=new THREE.Vector3().crossVectors(dir, camera.up).normalize();
+  const muzzle=origin.clone().addScaledVector(dir,1.0).addScaledVector(right,0.45).addScaledVector(camera.up,-0.32);
   const len=Math.max(0.2, muzzle.distanceTo(end));
   _laser.scale.set(1,len,1); _laser.position.copy(muzzle).lerp(end,0.5);
   _laser.quaternion.setFromUnitVectors(BEAM_UP, new THREE.Vector3().subVectors(end,muzzle).normalize());
