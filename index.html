@@ -299,16 +299,16 @@
     </div>
   </div>
 
-  <!-- ===== USERNAME (Sandbox gate) ===== -->
+  <!-- ===== USERNAME (startup) ===== -->
   <div id="username" class="screen hidden">
+    <h1 class="logo" style="font-size:46px;">BLOX RIVALS</h1>
     <div class="panel" style="max-width:420px;text-align:center;">
-      <h2>🔒 SANDBOX ACCESS</h2>
-      <div class="sub">Enter your username to unlock Sandbox mode.</div>
+      <h2>WELCOME</h2>
+      <div class="sub">Enter your username to continue.</div>
       <input id="unameInput" type="text" placeholder="Username" autocomplete="off" spellcheck="false" />
       <div id="unameMsg" style="min-height:18px;color:#ff4655;font-size:13px;margin-top:8px;"></div>
       <div class="rowBtns">
-        <button class="btn small" id="unameCancel">CANCEL</button>
-        <button class="btn primary" id="unameSubmit">UNLOCK</button>
+        <button class="btn primary" id="unameSubmit">CONTINUE →</button>
       </div>
     </div>
   </div>
@@ -1162,6 +1162,7 @@ function onPlayerDeath(bot){
 function startMatch(){
   match = { youRounds:0, botRounds:0, round:1, youKills:0, botKills:0 };
   BOT = DIFFICULTIES[selectedDifficulty];
+  if(sandbox && !sandboxUnlocked) sandbox=false;   // safety: can't enter sandbox without the username
   if(sandbox){ MAX_HP=3000; DMG_MULT=10; } else { MAX_HP=150; DMG_MULT=1; }   // game style
   document.body.classList.toggle('sandbox', sandbox);
   goFullscreen();
@@ -1545,28 +1546,21 @@ const MODE_META = [
 function buildMode(){
   const r=document.getElementById('modeRow'); r.innerHTML='';
   for(const m of MODE_META){
-    const locked = m.id===true && !sandboxUnlocked;
+    if(m.id===true && !sandboxUnlocked) continue;   // Sandbox only appears if your username unlocked it
     const b=document.createElement('div'); b.className='diffBtn'+(sandbox===m.id?' sel':'');
     b.style.borderColor = sandbox===m.id ? m.color : '#2a3142';
-    b.innerHTML=`<div style="font-weight:bold;font-size:15px;color:${m.color}">${m.name}${locked?' 🔒':''}</div><div style="font-size:10px;color:#8a93a6;margin-top:3px;line-height:1.3;">${m.desc}</div>`;
-    b.onclick=()=>{ if(locked){ openUsernamePrompt(); return; } sandbox=m.id; buildMode(); };
+    b.innerHTML=`<div style="font-weight:bold;font-size:15px;color:${m.color}">${m.name}</div><div style="font-size:10px;color:#8a93a6;margin-top:3px;line-height:1.3;">${m.desc}</div>`;
+    b.onclick=()=>{ sandbox=m.id; buildMode(); };
     r.appendChild(b);
   }
 }
-function openUsernamePrompt(){
-  document.getElementById('unameMsg').textContent='';
-  document.getElementById('unameInput').value='';
-  goto('username');
-  setTimeout(()=>{ try{ document.getElementById('unameInput').focus(); }catch(e){} }, 60);
-}
+// startup username prompt — GURNEET (any case) unlocks Sandbox for this session
 function submitUsername(){
-  const v=(document.getElementById('unameInput').value||'').trim().toLowerCase();
-  if(v==='gurneet'){
-    sandboxUnlocked=true; save.sandboxUnlocked=true; persist();
-    sandbox=true; buildMode(); goto('loadout');
-  } else {
-    document.getElementById('unameMsg').textContent='Access denied — Sandbox is restricted to GURNEET.';
-  }
+  const v=(document.getElementById('unameInput').value||'').trim();
+  if(!v){ document.getElementById('unameMsg').textContent='Please enter a username.'; return; }
+  sandboxUnlocked = (v.toLowerCase()==='gurneet');
+  save.username=v; persist();
+  goto('menu');
 }
 function buildDiff(){
   const r=document.getElementById('diffRow'); r.innerHTML='';
@@ -1705,7 +1699,6 @@ document.getElementById('btnRanked').onclick=()=>{ gameMode='ranked'; ensureRank
 document.getElementById('btnPractice').onclick=()=>{ gameMode='practice'; buildMapCards(); goto('mapSelect'); };
 document.getElementById('btnTasks').onclick=()=>{ buildTasks(); goto('tasks'); };
 document.getElementById('tasksBack').onclick=()=>goto('menu');
-document.getElementById('unameCancel').onclick=()=>{ buildMode(); goto('loadout'); };
 document.getElementById('unameSubmit').onclick=()=>submitUsername();
 document.getElementById('unameInput').addEventListener('keydown', e=>{ if(e.code==='Enter'){ e.preventDefault(); submitUsername(); } });
 document.getElementById('btnShop').onclick=()=>{ buildShop(); goto('shop'); };
@@ -1798,9 +1791,12 @@ function initTouch(){
 // ============================================================
 initThree();
 initTouch();
-sandboxUnlocked = !!save.sandboxUnlocked;
 ensureTasks();
 refreshKeyUI();
+// startup: ask for a username before the menu
+{ const el=document.getElementById('unameInput'); if(save.username) el.value=save.username; }
+goto('username');
+setTimeout(()=>{ try{ document.getElementById('unameInput').focus(); }catch(e){} }, 80);
 loop();
 </script>
 </body>
