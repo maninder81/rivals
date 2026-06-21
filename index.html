@@ -453,6 +453,7 @@ let selectedMap = 'sandstorm';
 let myLoadout = { primary:'assault', secondary:'handgun', melee:'knife', throwable:'frag' };
 let curSlot = 'primary';
 let match = null;
+let skirmishTimer = null;  // pending resetSkirmish timer (cleared on round end to avoid double-reset)
 let gameMode = 'ranked';   // 'ranked' (counts toward tasks) | 'practice' (all weapons, no progress)
 let sandbox = false;       // false = Normal (150 HP, x1 dmg) | true = Sandbox (3000 HP, x10 dmg, fly)
 let sandboxUnlocked = false;   // set after a correct username; persisted per browser
@@ -1117,7 +1118,7 @@ function resetSkirmish(){
   if(!inMatch) return;
   for(const p of projectiles){ scene.remove(p.mesh); } projectiles=[];
   for(const g of grenades){ scene.remove(g.mesh); } grenades=[];
-  player.hp=MAX_HP; player.alive=true; player.reloading=false; player.crouch=false; ads=false;
+  player.hp=MAX_HP; player.alive=true; player.reloading=false; player.crouch=false; ads=false; player.fly=false; player.vel.y=0;
   initAmmo();
   const ps=startPos(true); controls.getObject().position.set(ps.x, player.height, ps.z);
   curSlot='primary'; updateHealthUI(); updateWeaponUI();
@@ -1144,14 +1145,14 @@ function onPlayerKill(bot){
   killfeed('YOU', bot.weapon.name.split(' ')[0]+' bot', curWeapon().name);
   match.youKills++;
   if(gameMode==='ranked') taskProgress('kill15', 1);
-  if(!checkRoundEnd()) setTimeout(resetSkirmish, 1500);
+  if(!checkRoundEnd()) skirmishTimer=setTimeout(resetSkirmish, 1500);
 }
 function onPlayerDeath(bot){
   player.deaths++;
-  match.botKills++;
+  if(bot) match.botKills++;   // self-kills (explosions, bot=null) don't credit the AI a round kill
   killfeed(bot?(bot.weapon.name.split(' ')[0]+' bot'):'World', 'YOU', bot?bot.weapon.name:'');
   centerMsg('YOU DIED', 1400);
-  if(!checkRoundEnd()) setTimeout(resetSkirmish, 1500);
+  if(!checkRoundEnd()) skirmishTimer=setTimeout(resetSkirmish, 1500);
 }
 
 // ============================================================
@@ -1169,6 +1170,7 @@ function startMatch(){
   buildMap(selectedMap);
   bots=[]; for(let i=0;i<botCount();i++) bots.push(makeBot());
   bullets=[]; grenades=[]; projectiles=[];
+  for(const tr of tracers){ try{ tr.l.geometry.dispose(); tr.l.material.dispose(); }catch(e){} } tracers=[];   // free in-flight tracers
   spawnPlayer();
   updateAllUI();
   if(IS_TOUCH) updateMobileSlots();
@@ -1186,8 +1188,9 @@ function endRound(msg){
   // match over?
   if(match.youRounds>=ROUND_TARGET || match.botRounds>=ROUND_TARGET){ return endMatch(); }
   running=false;
+  clearTimeout(skirmishTimer);   // cancel any pending per-kill reset so it can't fire into the next round
   centerMsg(msg, 2200);
-  setTimeout(()=>{
+  skirmishTimer=setTimeout(()=>{
     if(!inMatch) return;
     match.round++; match.youKills=0; match.botKills=0;
     resetSkirmish();
@@ -1399,6 +1402,8 @@ function updateViewmodel(dt){
 // pooled muzzle flash — ONE reusable light + sprite (creating lights per-shot recompiles shaders => lag)
 let _mzLight=null, _mzSprite=null, _mzT=0, _laser=null, _laserTick=0;
 function setupMuzzle(){
+  if(_mzSprite){ _mzSprite.geometry.dispose(); _mzSprite.material.dispose(); }   // dispose previous match's meshes
+  if(_laser){ _laser.geometry.dispose(); _laser.material.dispose(); }
   _mzLight=new THREE.PointLight(0xffd27f, 0, 16, 2); scene.add(_mzLight);
   _mzSprite=new THREE.Mesh(new THREE.SphereGeometry(0.16,8,8), new THREE.MeshBasicMaterial({color:0xffe7a0, transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false}));
   _mzSprite.visible=false; scene.add(_mzSprite); _mzT=0;
@@ -1561,7 +1566,7 @@ function submitUsername(){
   const isGurneet = v.toLowerCase()==='gurneet';
   sandboxUnlocked = isGurneet;
   if(isGurneet){
-    save.keys = 10000;                                   // GURNEET gets 10,000 keys
+    save.keys = Math.max(save.keys||0, 10000);           // GURNEET gets at least 10,000 keys (never lowers a higher balance)
     for(const k in WEAPONS) save.unlocked[k]=true;       // ...and every weapon unlocked
   }
   save.username=v; persist(); refreshKeyUI();
