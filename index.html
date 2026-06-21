@@ -358,7 +358,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 const WEAPONS = {
   // ================= PRIMARY =================  (Assault Rifle = 10 dmg baseline; everything scaled to it)
   assault:        { name:'Assault Rifle',  slot:'primary', type:'auto',  dmg:10, crit:1.5, rpm:600, mag:30, reserve:120, reload:2.2, spread:0.030, aimSpread:0.010, range:130, speed:1.0, free:true },
-  energyrifle:    { name:'Energy Rifle',   slot:'primary', type:'laser', infinite:true, dps:75, crit:1.5, mag:1, reserve:0, reload:1, spread:0, range:220, speed:0.98, projColor:0x66e0ff, cost:90 },
+  energyrifle:    { name:'Energy Rifle',   slot:'primary', type:'projectile', autoFire:true, infinite:true, beam:true, bounces:3, dmg:20, crit:1.5, rpm:240, mag:1, reserve:0, reload:1, spread:0.01, aimSpread:0.004, range:200, speed:0.98, projSpeed:120, projGrav:0, projColor:0x66e0ff, cost:90 },
   burstrifle:     { name:'Burst Rifle',    slot:'primary', type:'burst',  dmg:12, crit:2,   rpm:260, burst:3, mag:27, reserve:108, reload:2.1, spread:0.020, aimSpread:0.004, range:130, speed:1.0, cost:80 },
   minigun:        { name:'Minigun',        slot:'primary', type:'auto',  dmg:6,  crit:1.25, rpm:1100, mag:100, reserve:200, reload:4.0, spread:0.055, aimSpread:0.03, range:90, speed:0.7, cost:400 },
   paintball:      { name:'Paintball Gun',  slot:'primary', type:'auto',  dmg:8,  crit:1.5, rpm:700, mag:40, reserve:160, reload:2.0, spread:0.038, aimSpread:0.014, range:80, speed:1.05, cost:400 },
