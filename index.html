@@ -546,10 +546,17 @@ function addBox(x,y,z,w,h,d,color,solid=true){
   return m;
 }
 function clearWorld(){
-  for(const o of world.obstacles) scene.remove(o);
-  // remove everything except controls object
+  // remove everything except the camera, disposing per-instance GPU resources (keep shared matCache materials alive)
   const keep = controls.getObject();
-  for(let i=scene.children.length-1;i>=0;i--){ if(scene.children[i]!==keep) scene.remove(scene.children[i]); }
+  const cached = new Set(Object.values(matCache));
+  for(let i=scene.children.length-1;i>=0;i--){
+    const o=scene.children[i]; if(o===keep) continue;
+    if(o.isMesh){
+      if(o.geometry) o.geometry.dispose();
+      if(o.material && !cached.has(o.material)){ if(o.material.map) o.material.map.dispose(); o.material.dispose(); }
+    }
+    scene.remove(o);
+  }
   world.colliders=[]; world.obstacles=[]; world.climbs=[];
 }
 
@@ -744,7 +751,7 @@ function climbAt(x,z,feetY){  // standing next to a climbable surface you haven'
 function makeBot(){
   const grp = new THREE.Group();
   const skin = [0xff4655,0xff7a4a,0xc94aff,0x4affc9,0xffd34d][bots.length%5];
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1.4,1.8,0.8), mat(skin)); body.position.y=1.4; body.castShadow=true;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.4,1.8,0.8), mat(skin).clone()); body.position.y=1.4; body.castShadow=true;   // own material so hit-flash (emissive) doesn't bleed to other bots
   const head = new THREE.Mesh(new THREE.BoxGeometry(1.0,1.0,1.0), mat(0xf1c27d)); head.position.y=2.8; head.castShadow=true;
   const legL = new THREE.Mesh(new THREE.BoxGeometry(0.5,1.4,0.5), mat(0x2a3142)); legL.position.set(-0.35,0.5,0);
   const legR = new THREE.Mesh(new THREE.BoxGeometry(0.5,1.4,0.5), mat(0x2a3142)); legR.position.set(0.35,0.5,0);
@@ -906,7 +913,7 @@ function tryShoot(){
 function fireBurst(w){
   const id=myLoadout[curSlot]; const n=w.burst||3;
   for(let i=0;i<n;i++){
-    setTimeout(()=>{ if(!running||paused||!player.alive) return; if(myLoadout[curSlot]!==id) return;
+    setTimeout(()=>{ if(!running||paused||!player.alive||player.reloading) return; if(myLoadout[curSlot]!==id) return;
       const a=player.ammo[id]; if(!a||a.mag<=0) return; a.mag--; updateWeaponUI(); recoil(w); fireRay(w); }, i*70);
   }
 }
@@ -1021,7 +1028,7 @@ function explode(pos,w,exclude){
   // visual
   const flash=new THREE.Mesh(new THREE.SphereGeometry(w.radius,16,16), new THREE.MeshBasicMaterial({color:w.fire?0xff7a2a:0xffd34d, transparent:true, opacity:.6}));
   flash.position.copy(pos); scene.add(flash);
-  let s=0.2; const grow=setInterval(()=>{ s+=0.18; flash.scale.set(s,s,s); flash.material.opacity-=0.06; if(flash.material.opacity<=0){clearInterval(grow); scene.remove(flash);} },16);
+  let s=0.2; const grow=setInterval(()=>{ s+=0.18; flash.scale.set(s,s,s); flash.material.opacity-=0.06; if(flash.material.opacity<=0){clearInterval(grow); scene.remove(flash); flash.geometry.dispose(); flash.material.dispose();} },16);
   const kb = w.knockback||0;
   // splash damage + knockback to bots
   for(const bot of bots){ if(!bot.alive||bot===exclude) continue;
@@ -1116,9 +1123,10 @@ function damageBot(bot,dmg){
 // full health, full ammo, primary equipped, fixed opposite-side spawns.
 function resetSkirmish(){
   if(!inMatch) return;
-  for(const p of projectiles){ scene.remove(p.mesh); } projectiles=[];
-  for(const g of grenades){ scene.remove(g.mesh); } grenades=[];
+  for(const p of projectiles){ scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); } projectiles=[];
+  for(const g of grenades){ scene.remove(g.mesh); g.mesh.geometry.dispose(); } grenades=[];   // grenade material is shared (matCache) — don't dispose
   player.hp=MAX_HP; player.alive=true; player.reloading=false; player.crouch=false; ads=false; player.fly=false; player.vel.y=0;
+  if(player.knock) player.knock.set(0,0,0);   // no residual knockback into the new life
   initAmmo();
   const ps=startPos(true); controls.getObject().position.set(ps.x, player.height, ps.z);
   curSlot='primary'; updateHealthUI(); updateWeaponUI();
@@ -1145,14 +1153,14 @@ function onPlayerKill(bot){
   killfeed('YOU', bot.weapon.name.split(' ')[0]+' bot', curWeapon().name);
   match.youKills++;
   if(gameMode==='ranked') taskProgress('kill15', 1);
-  if(!checkRoundEnd()) skirmishTimer=setTimeout(resetSkirmish, 1500);
+  if(!checkRoundEnd()){ clearTimeout(skirmishTimer); skirmishTimer=setTimeout(resetSkirmish, 1500); }
 }
 function onPlayerDeath(bot){
   player.deaths++;
   if(bot) match.botKills++;   // self-kills (explosions, bot=null) don't credit the AI a round kill
   killfeed(bot?(bot.weapon.name.split(' ')[0]+' bot'):'World', 'YOU', bot?bot.weapon.name:'');
   centerMsg('YOU DIED', 1400);
-  if(!checkRoundEnd()) skirmishTimer=setTimeout(resetSkirmish, 1500);
+  if(!checkRoundEnd()){ clearTimeout(skirmishTimer); skirmishTimer=setTimeout(resetSkirmish, 1500); }
 }
 
 // ============================================================
@@ -1160,12 +1168,14 @@ function onPlayerDeath(bot){
 // ============================================================
 function startMatch(){
   match = { youRounds:0, botRounds:0, round:1, youKills:0, botKills:0 };
+  ensureTasks();   // apply any pending 3-day reset at a safe point (not mid-match)
   BOT = DIFFICULTIES[selectedDifficulty];
   if(sandbox && !sandboxUnlocked) sandbox=false;   // safety: can't enter sandbox without the username
   if(sandbox){ MAX_HP=3000; DMG_MULT=10; } else { MAX_HP=150; DMG_MULT=1; }   // game style
   document.body.classList.toggle('sandbox', sandbox);
   goFullscreen();
   inMatch=true; running=true; paused=false; ads=false;
+  document.body.classList.remove('paused');   // clear any stale pause class (e.g. after quit-from-pause)
   camera.fov=BASE_FOV; camera.updateProjectionMatrix();
   buildMap(selectedMap);
   bots=[]; for(let i=0;i<botCount();i++) bots.push(makeBot());
@@ -1180,6 +1190,7 @@ function startMatch(){
   if(!IS_TOUCH) controls.lock();
 }
 function checkRoundEnd(){
+  if(!running) return true;   // round already resolved this frame — don't double-credit (e.g. kill + self-death in one explosion)
   if(match.youKills>=KILLS_PER_ROUND){ match.youRounds++; endRound('YOU WIN THE ROUND'); updateAllUI(); return true; }
   if(match.botKills>=KILLS_PER_ROUND){ match.botRounds++; endRound('BOTS WIN THE ROUND'); updateAllUI(); return true; }
   updateAllUI(); return false;
@@ -1232,6 +1243,9 @@ function updatePlayer(dt){
 
   const obj = controls.getObject();
   const eye = player.crouch?2.2:player.height;
+  // when crouch toggles, shift the camera by the eye delta while grounded so feet stay planted (no pop / spurious fall)
+  if(player._lastEye===undefined) player._lastEye=eye;
+  if(eye!==player._lastEye){ if(player.onGround) obj.position.y += (eye - player._lastEye); player._lastEye=eye; }
   let feet = obj.position.y - eye;
 
   // horizontal move + explosion knockback
@@ -1280,7 +1294,7 @@ function updatePlayer(dt){
 function tryJump(){
   if(!player||!player.alive||!running||paused||player.fly) return;
   if(player.onGround){ player.vel.y=10; player.onGround=false; player.jumps=1; }
-  else if(curWeapon().doubleJump && (player.jumps||0)<2){ player.vel.y=10; player.jumps=2; }   // mid-air double jump
+  else if(curWeapon().doubleJump && (player.jumps||0)<2){ player.vel.y=10; player.jumps=(player.jumps||0)+1; }   // mid-air jump (off-ledge fallers get both air jumps)
 }
 function toggleFly(){ if(!player||!player.alive) return; if(!sandbox){ centerMsg('Fly is Sandbox-only', 800); return; } player.fly=!player.fly; player.vel.y=0; centerMsg(player.fly?'✈ FLY MODE ON':'FLY MODE OFF', 900); }
 function reload(){
@@ -1465,7 +1479,11 @@ function tracer(a,b){
   scene.add(l); tracers.push({l,t:0});
 }
 function updateTracers(dt){ for(let i=tracers.length-1;i>=0;i--){ const tr=tracers[i]; tr.t+=dt; tr.l.material.opacity=0.9-tr.t*6; if(tr.t>0.15){ scene.remove(tr.l); tr.l.geometry.dispose(); tr.l.material.dispose(); tracers.splice(i,1);} } }
-function flashMesh(m){ const c=m.material.color.clone(); m.material=m.material.clone(); m.material.color.set(0xffffff); setTimeout(()=>m.material.color.copy(c),60); }
+function flashMesh(m){   // non-destructive emissive flash: no per-hit material clone (no leak), no white-stuck race
+  const mt=m.material; mt.emissive.setHex(0xffffff); mt.emissiveIntensity=1;
+  clearTimeout(m._flashT);
+  m._flashT=setTimeout(()=>{ mt.emissive.setHex(0x000000); mt.emissiveIntensity=0; }, 60);
+}
 
 // ============================================================
 //  MINIMAP
@@ -1630,8 +1648,8 @@ function ensureTasks(){
   persist();
 }
 function taskProgress(id,n){
-  ensureTasks();
-  const t=TASKS.find(x=>x.id===id); if(!t || save.tasks.claimed[id]) return;
+  if(!save.tasks) ensureTasks();   // init only — never time-reset mid-match (that would wipe progress earned this session)
+  const t=TASKS.find(x=>x.id===id); if(!t || !save.tasks || save.tasks.claimed[id]) return;
   save.tasks.progress[id]=Math.min(t.goal,(save.tasks.progress[id]||0)+n);
   if(save.tasks.progress[id]>=t.goal){ save.tasks.claimed[id]=true; addKeys(t.reward); centerMsg('✅ TASK COMPLETE  +'+t.reward+' 🔑', 2400); }
   persist();
@@ -1721,7 +1739,7 @@ document.getElementById('mapNext').onclick=()=>{ buildLoadout(); buildMode(); bu
 document.getElementById('loadBack').onclick=()=>{ buildMapCards(); goto('mapSelect'); };
 document.getElementById('loadFight').onclick=()=>{ startMatch(); };
 document.getElementById('resumeBtn').onclick=()=>{ resumeGame(); };
-document.getElementById('quitBtn').onclick=()=>{ inMatch=false; running=false; controls.unlock(); goto('menu'); };
+document.getElementById('quitBtn').onclick=()=>{ inMatch=false; running=false; paused=false; document.body.classList.remove('paused'); controls.unlock(); goto('menu'); };
 document.getElementById('endAgain').onclick=()=>{ buildMapCards(); goto('mapSelect'); };
 document.getElementById('endMenu').onclick=()=>goto('menu');
 
@@ -1731,6 +1749,7 @@ document.getElementById('endMenu').onclick=()=>goto('menu');
 function updateMobileSlots(){
   document.querySelectorAll('#mSlots .ms').forEach(el=> el.classList.toggle('sel', el.dataset.slot===curSlot));
   ads=false; const a=document.getElementById('bAds'); if(a) a.classList.remove('on');
+  const f=document.getElementById('bFly'); if(f) f.classList.toggle('on', !!(player&&player.fly));   // keep FLY button highlight in sync
 }
 function initTouch(){
   if(!IS_TOUCH) return;
