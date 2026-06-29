@@ -549,12 +549,13 @@ function clearWorld(){
   // remove everything except the camera, disposing per-instance GPU resources (keep shared matCache materials alive)
   const keep = controls.getObject();
   const cached = new Set(Object.values(matCache));
+  const disp=(n)=>{ if(n.isMesh){
+    if(n.geometry) n.geometry.dispose();
+    if(n.material && !cached.has(n.material)){ if(n.material.map) n.material.map.dispose(); n.material.dispose(); }
+  } };
   for(let i=scene.children.length-1;i>=0;i--){
     const o=scene.children[i]; if(o===keep) continue;
-    if(o.isMesh){
-      if(o.geometry) o.geometry.dispose();
-      if(o.material && !cached.has(o.material)){ if(o.material.map) o.material.map.dispose(); o.material.dispose(); }
-    }
+    o.traverse(disp);   // recurse into Groups (bots) so their child meshes are freed too
     scene.remove(o);
   }
   world.colliders=[]; world.obstacles=[]; world.climbs=[];
@@ -1078,7 +1079,10 @@ function updateProjectiles(dt){
     let hitBot=null;
     for(const bot of bots){ if(!bot.alive) continue;
       const c=bot.grp.position.clone(); c.y+=1.8;
-      if(next.distanceTo(c)<1.7){ hitBot=bot; break; }
+      // swept test: closest point on the cur->next segment to the bot (avoids fast bolts tunneling through)
+      const ab=new THREE.Vector3().subVectors(next,cur); const ab2=ab.lengthSq();
+      const t=ab2>0 ? THREE.MathUtils.clamp(new THREE.Vector3().subVectors(c,cur).dot(ab)/ab2, 0, 1) : 0;
+      if(cur.clone().addScaledVector(ab,t).distanceTo(c)<1.8){ hitBot=bot; break; }
     }
     const groundHit = next.y<=0.3;
     const wallHit = blocked(next.x,next.z,0.3) && next.y<8;
@@ -1126,6 +1130,7 @@ function resetSkirmish(){
   for(const p of projectiles){ scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); } projectiles=[];
   for(const g of grenades){ scene.remove(g.mesh); g.mesh.geometry.dispose(); } grenades=[];   // grenade material is shared (matCache) — don't dispose
   player.hp=MAX_HP; player.alive=true; player.reloading=false; player.crouch=false; ads=false; player.fly=false; player.vel.y=0;
+  player._lastEye=player.height; player.onGround=true;   // reset crouch eye-baseline so respawn doesn't pop the camera
   if(player.knock) player.knock.set(0,0,0);   // no residual knockback into the new life
   initAmmo();
   const ps=startPos(true); controls.getObject().position.set(ps.x, player.height, ps.z);
@@ -1168,6 +1173,7 @@ function onPlayerDeath(bot){
 // ============================================================
 function startMatch(){
   match = { youRounds:0, botRounds:0, round:1, youKills:0, botKills:0 };
+  clearTimeout(skirmishTimer);   // cancel any stale reset timer from a previous match
   ensureTasks();   // apply any pending 3-day reset at a safe point (not mid-match)
   BOT = DIFFICULTIES[selectedDifficulty];
   if(sandbox && !sandboxUnlocked) sandbox=false;   // safety: can't enter sandbox without the username
@@ -1212,6 +1218,7 @@ function endRound(msg){
 }
 function endMatch(){
   running=false;
+  clearTimeout(skirmishTimer);   // no stale reset can fire after the match ends
   const won = match.youRounds>match.botRounds;
   if(gameMode==='ranked'){ taskProgress('play5', 1); if(won) taskProgress('win2', 1); }
   inMatch=false;
@@ -1231,7 +1238,8 @@ function endMatch(){
 function updatePlayer(dt){
   if(!player.alive){ return; }
   const sprint = keysDown['ShiftLeft'] || (IS_TOUCH && joy.mag>0.92);
-  const speed = (curWeapon().speed||1) * (sprint?9.5:6.2) * (player.crouch?0.5:1) * (ads?0.55:1);
+  const cwT=curWeapon().type, canADS=(cwT!=='melee'&&cwT!=='grenade');
+  const speed = (curWeapon().speed||1) * (sprint?9.5:6.2) * (player.crouch?0.5:1) * ((ads&&canADS)?0.55:1);
   let fwd = (keysDown['KeyW']?1:0)-(keysDown['KeyS']?1:0);
   let str = (keysDown['KeyD']?1:0)-(keysDown['KeyA']?1:0);
   if(IS_TOUCH){ fwd += -joy.y; str += joy.x; fwd=Math.max(-1,Math.min(1,fwd)); str=Math.max(-1,Math.min(1,str)); }
@@ -1245,7 +1253,7 @@ function updatePlayer(dt){
   const eye = player.crouch?2.2:player.height;
   // when crouch toggles, shift the camera by the eye delta while grounded so feet stay planted (no pop / spurious fall)
   if(player._lastEye===undefined) player._lastEye=eye;
-  if(eye!==player._lastEye){ if(player.onGround) obj.position.y += (eye - player._lastEye); player._lastEye=eye; }
+  if(eye!==player._lastEye){ obj.position.y += (eye - player._lastEye); player._lastEye=eye; }   // keep feet planted on crouch toggle (air or ground)
   let feet = obj.position.y - eye;
 
   // horizontal move + explosion knockback
@@ -1367,9 +1375,15 @@ function loop(){
 // ============================================================
 //  VIEWMODEL (simple gun in front of camera)
 // ============================================================
-let viewmodel=null, vmRecoil=0, vmSwing=0;
+let viewmodel=null, vmRecoil=0, vmSwing=0, viewmodelFor=null;
 function rebuildViewmodel(){
-  if(viewmodel){ camera.remove(viewmodel); viewmodel=null; }
+  const id=myLoadout[curSlot];
+  if(viewmodel && viewmodelFor===id) return;   // same weapon — don't rebuild every shot (was leaking geometries)
+  if(viewmodel){ const cached=new Set(Object.values(matCache));
+    camera.remove(viewmodel);
+    viewmodel.traverse(n=>{ if(n.isMesh){ if(n.geometry) n.geometry.dispose(); if(n.material && !cached.has(n.material)) n.material.dispose(); } });   // geometries are per-instance; only dispose non-cached materials (e.g. shield)
+    viewmodel=null; }
+  viewmodelFor=id;
   const w=curWeapon(); const grp=new THREE.Group();
   if(w.type==='melee'){
     if(w.shield){
@@ -1739,7 +1753,7 @@ document.getElementById('mapNext').onclick=()=>{ buildLoadout(); buildMode(); bu
 document.getElementById('loadBack').onclick=()=>{ buildMapCards(); goto('mapSelect'); };
 document.getElementById('loadFight').onclick=()=>{ startMatch(); };
 document.getElementById('resumeBtn').onclick=()=>{ resumeGame(); };
-document.getElementById('quitBtn').onclick=()=>{ inMatch=false; running=false; paused=false; document.body.classList.remove('paused'); controls.unlock(); goto('menu'); };
+document.getElementById('quitBtn').onclick=()=>{ inMatch=false; running=false; paused=false; clearTimeout(skirmishTimer); document.body.classList.remove('paused'); controls.unlock(); goto('menu'); };
 document.getElementById('endAgain').onclick=()=>{ buildMapCards(); goto('mapSelect'); };
 document.getElementById('endMenu').onclick=()=>goto('menu');
 
