@@ -724,6 +724,11 @@ function blocked(x,z,r){
   for(const b of world.colliders){ if(p.x>b.min.x-r&&p.x<b.max.x+r&&p.z>b.min.z-r&&p.z<b.max.z+r&&b.max.y>0.5) return true; }
   return false;
 }
+// true if a solid box occupies (x,z) AT height y — used for projectiles so they hit walls at their actual height (and don't phase over/through)
+function blockedAtY(x,z,y,r){
+  for(const b of world.colliders){ if(x>b.min.x-r&&x<b.max.x+r&&z>b.min.z-r&&z<b.max.z+r&&y>b.min.y-0.2&&y<b.max.y+0.2) return true; }
+  return false;
+}
 // ---- vertical traversal: stand-on-top, step-up, and climbable surfaces ----
 const STEP = 2.6;   // max height you can step up onto without jumping/climbing
 function surfaceAt(x,z,feetY){
@@ -846,11 +851,13 @@ function updateBots(dt){
       for(const off of offs){
         const a=desired+off, mx=Math.cos(a), mz=Math.sin(a);
         const nx=bp.x+mx*sp, nz=bp.z+mz*sp;
-        const okx=!blocked(nx,bp.z,1.3) && Math.abs(nx)<ARENA-2;
-        const okz=!blocked(bp.x,nz,1.3) && Math.abs(nz)<ARENA-2;
+        // height-aware: walk UNDER high bridges and step up ramps/platforms (not walled by overhead geometry)
+        const okx=!wallBlocked(nx,bp.z,1.3,bp.y) && Math.abs(nx)<ARENA-2;
+        const okz=!wallBlocked(bp.x,nz,1.3,bp.y) && Math.abs(nz)<ARENA-2;
         if(okx||okz){ if(okx) bp.x=nx; if(okz) bp.z=nz; break; }
       }
     }
+    bp.y = surfaceAt(bp.x, bp.z, bp.y);   // stand on platforms/ramps the bot walks onto (so it can pursue you to high ground)
 
     // --- shooting: only when it can actually see you and has held line-of-sight past its reaction time ---
     if(see && bot.seeT>BOT.reaction && dist<bot.weapon.range){
@@ -1014,7 +1021,7 @@ function updateGrenades(dt){
     g.vel.y-=22*dt;
     g.mesh.position.addScaledVector(g.vel,dt);
     if(g.mesh.position.y<0.3){ g.mesh.position.y=0.3; g.vel.y*=-0.4; g.vel.x*=0.6; g.vel.z*=0.6; }
-    if(g.t>1.6){ explode(g.mesh.position, g.w); scene.remove(g.mesh); grenades.splice(i,1); }
+    if(g.t>1.6){ explode(g.mesh.position, g.w); scene.remove(g.mesh); g.mesh.geometry.dispose(); grenades.splice(i,1); }   // dispose geom (material is shared matCache)
   }
 }
 function applyKnockback(dir, power){
@@ -1085,13 +1092,13 @@ function updateProjectiles(dt){
       if(cur.clone().addScaledVector(ab,t).distanceTo(c)<1.8){ hitBot=bot; break; }
     }
     const groundHit = next.y<=0.3;
-    const wallHit = blocked(next.x,next.z,0.3) && next.y<8;
+    const wallHit = blockedAtY(next.x,next.z,next.y,0.3);   // height-aware: collide at the projectile's actual height (no fly-over-everything above y=8)
     // bounce off walls/ground (when no bot hit) while bounces remain
     if(!hitBot && (groundHit||wallHit) && (p.bounces||0)>0){
       p.bounces--;
       if(groundHit){ cur.y=0.32; p.vel.y=Math.abs(p.vel.y)*0.8; }
       if(wallHit){
-        const hx=blocked(next.x,cur.z,0.3), hz=blocked(cur.x,next.z,0.3);
+        const hx=blockedAtY(next.x,cur.z,next.y,0.3), hz=blockedAtY(cur.x,next.z,next.y,0.3);
         if(hx || (!hx&&!hz)) p.vel.x*=-0.85;
         if(hz || (!hx&&!hz)) p.vel.z*=-0.85;
       }
@@ -1141,6 +1148,7 @@ function resetSkirmish(){
     bot.grp.position.copy(startPos(false));
     bot.weapon=randomBotWeapon();
     bot.seeT=0; bot.lastSeen=null; bot.wander=null; bot.searchT=0;
+    bot.lastPos=null; bot.unstickT=0; bot.stuckCheck=0;   // clear locomotion/stuck state too
   }
 }
 
